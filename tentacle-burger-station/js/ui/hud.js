@@ -408,8 +408,10 @@
       // money counts up quickly
       if (Math.abs(g.money - this.moneyShown) < 1) this.moneyShown = g.money;
       else this.moneyShown += (g.money - this.moneyShown) * U.smooth(10, dt);
+      // the counting number is written at most 15 times a second (each new text = the phone repaints the bar)
+      this.moneyT = (this.moneyT || 0) + dt;
       const mtxt = U.fmtMoney(this.moneyShown);
-      if (this.el.money.textContent !== mtxt) this.el.money.textContent = mtxt;
+      if (this.el.money.textContent !== mtxt && (this.moneyT >= 1 / 15 || this.moneyShown === g.money)) { this.el.money.textContent = mtxt; this.moneyT = 0; }
       const gtxt = String(g.gems);
       if (this.el.gems.textContent !== gtxt) {
         if (this.el.gems.textContent !== '' && Number(gtxt) > Number(this.el.gems.textContent)) { this.el.gemBox.classList.remove('pulse'); void this.el.gemBox.offsetWidth; this.el.gemBox.classList.add('pulse'); }
@@ -424,10 +426,10 @@
         this.levelShown = g.level;
         this.el.level.textContent = g.level;
         this.el.level.parentNode.classList.remove('pulse'); void this.el.level.offsetWidth; this.el.level.parentNode.classList.add('pulse');
-        this.el.xp.style.width = '100%';
+        this.el.xp.style.transform = 'translateX(0%)'; this.xpW = null;
         this.xpAnim = 0.35;
-      } else if (this.xpAnim > 0) { this.xpAnim -= dt; if (this.xpAnim <= 0) { this.el.xp.style.transition = 'none'; this.el.xp.style.width = '0%'; void this.el.xp.offsetWidth; this.el.xp.style.transition = ''; } }
-      else { const wv = (frac * 100).toFixed(1) + '%'; if (wv !== this.xpW) { this.el.xp.style.width = wv; this.xpW = wv; } } // only when it changed: each write redoes the page layout
+      } else if (this.xpAnim > 0) { this.xpAnim -= dt; if (this.xpAnim <= 0) { this.el.xp.style.transition = 'none'; this.el.xp.style.transform = 'translateX(-100%)'; void this.el.xp.offsetWidth; this.el.xp.style.transition = ''; } }
+      else { const wv = 'translateX(' + ((frac - 1) * 100).toFixed(1) + '%)'; if (wv !== this.xpW) { this.el.xp.style.transform = wv; this.xpW = wv; } } // only when it changed
       // active boosts
       let bh = '';
       if (g.boosts.speed > 0) bh += '<span class="chip speed">' + U.fmtTime(g.boosts.speed) + '</span>';
