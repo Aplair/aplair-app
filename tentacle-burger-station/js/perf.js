@@ -94,6 +94,53 @@
       b.textContent = hide ? 'HUD on' : 'HUD off';
     });
 
+    // AUTO TEST: hides one part at a time for a few seconds and measures the speed, then shows a table.
+    // Hiding a part shows how much time the phone spends drawing it.
+    const baseRatio = M.game.cfg.MAX_PIXEL_RATIO;
+    const hidden = new Set(), ownerOf = (o) => o.userData.perfOwner || (o.userData.perfOwner = owner(o));
+    const drawOne = M.view.render;
+    M.view.render = function () {
+      if (!hidden.size) return drawOne();
+      const off = [];
+      view.scene.traverse((o) => { if (o.isMesh && o.visible && hidden.has(ownerOf(o))) { o.visible = false; off.push(o); } });
+      drawOne();
+      for (const o of off) o.visible = true;
+    };
+    const steps = [
+      ['normal', () => {}],
+      ['no world', () => hidden.add('world')], ['no floor', () => hidden.add('floor')], ['no aliens', () => hidden.add('aliens')],
+      ['no items', () => hidden.add('items')], ['no workers+chef', () => { hidden.add('workers'); hidden.add('chef'); }],
+      ['no labels/HUD', () => { for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = 'none'; }],
+      ['sharp 1.25', () => setRatio(1.25)], ['sharp 1', () => setRatio(1)],
+      ['draw off', () => { drawOff = true; }]
+    ];
+    const reset = () => {
+      hidden.clear(); drawOff = false; setRatio(baseRatio);
+      for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = '';
+    };
+    const table = document.createElement('div');
+    table.style.cssText = 'margin-top:4px;white-space:pre;';
+    box.appendChild(table);
+    button('AUTO TEST', (b) => {
+      if (b.disabled) return;
+      b.disabled = true;
+      const rows = []; let i = 0;
+      const next = () => {
+        reset();
+        if (i >= steps.length) { b.disabled = false; b.textContent = 'AUTO TEST'; table.textContent = 'AUTO TEST (FPS, ms per frame):\n' + rows.join('\n'); return; }
+        const [name, apply] = steps[i++];
+        apply();
+        b.textContent = 'testing ' + i + '/' + steps.length + '...';
+        setTimeout(() => {           // 1 s to settle, then measure 3 s
+          let n = 0; const t0 = performance.now();
+          const tick = () => { n++; if (performance.now() - t0 < 3000) requestAnimationFrame(tick); else { const ms = (performance.now() - t0) / n; rows.push(name.padEnd(16) + (1000 / ms).toFixed(0).padStart(3) + ' FPS ' + ms.toFixed(0).padStart(3) + ' ms'); next(); } };
+          requestAnimationFrame(tick);
+        }, 1000);
+      };
+      table.textContent = 'stand still, do not touch the screen (about 40 seconds)';
+      next();
+    });
+
     // which part of the game each draw call comes from (counted while the scene is drawn)
     const calls = {};
     const owner = (o) => {

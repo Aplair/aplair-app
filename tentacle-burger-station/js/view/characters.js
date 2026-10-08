@@ -121,7 +121,7 @@
   // each: weak phones pay per draw call. Their rigs are not in the scene; they only hold the pose.
   class RigBatch {
     constructor(scene, template, cap) {
-      const mk = (geo) => { const m = new THREE.InstancedMesh(geo, B.mat.vc, cap); m.count = 0; m.frustumCulled = false; scene.add(m); return m; };
+      const mk = (geo) => { const m = new THREE.InstancedMesh(geo, B.mat.vcInst, cap); m.count = 0; m.frustumCulled = false; scene.add(m); return m; };
       this.parts = { body: mk(template.body.geometry), leg: mk(template.legL.geometry), arm: mk(template.armL.geometry), tray: mk(template.tray.geometry) };
       this.n = {};
     }

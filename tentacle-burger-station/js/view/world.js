@@ -273,7 +273,7 @@
         seg1.visible = false; // only holds the pose: all 5 tentacles are drawn by 2 shared draw calls (tentInst)
         this.scene.add(base);
         this.tentacles.push({ base: base, seg1: seg1, seg2: seg2, tip: tip, ph: i * 1.7 });
-        if (!i) this.tentInst = [seg1, seg2].map((sg) => { const im = new THREE.InstancedMesh(sg.geometry, B.mat.vc, 5); im.count = 0; im.frustumCulled = false; this.scene.add(im); return im; });
+        if (!i) this.tentInst = [seg1, seg2].map((sg) => { const im = new THREE.InstancedMesh(sg.geometry, B.mat.vcInst, 5); im.count = 0; im.frustumCulled = false; this.scene.add(im); return im; });
       }
       this.pop.src1 = { obj: this.padMesh, extra: this.tentacles.map((t) => t.base), shown: false, track: 'b_src1' };
       const mk = (def, accent, glow, id) => {

@@ -49,6 +49,9 @@
 
   B.mat = {
     vc: new THREE.MeshLambertMaterial({ vertexColors: true }),
+    // the same look for repeated (instanced) shapes. Kept apart from vc: one material shared by both kinds
+    // makes three.js rebuild its drawing setup every time it switches kind, several times per frame
+    vcInst: new THREE.MeshLambertMaterial({ vertexColors: true }),
     basic: (c) => new THREE.MeshBasicMaterial({ color: c })
   };
 
