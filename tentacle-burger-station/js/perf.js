@@ -113,10 +113,25 @@
       ['no labels', () => { document.getElementById('overlay').style.display = 'none'; }],
       ['no HUD', () => { document.getElementById('hud').style.display = 'none'; }],
       ['sharp 1.25', () => setRatio(1.25)], ['sharp 1', () => setRatio(1)],
-      ['draw off', () => { drawOff = true; }]
+      ['draw off', () => { drawOff = true; }],
+      // the same while walking: the test presses left / right by itself (camera and labels move every frame)
+      ['WALK normal', () => walk(true)],
+      ['WALK no labels', () => { walk(true); document.getElementById('overlay').style.display = 'none'; }],
+      ['WALK no HUD', () => { walk(true); document.getElementById('hud').style.display = 'none'; }],
+      ['WALK no world', () => { walk(true); hidden.add('world'); }],
+      ['WALK draw off', () => { walk(true); drawOff = true; }]
     ];
+    let walkTimer = null, walkKey = null;
+    const key = (type, code) => window.dispatchEvent(new KeyboardEvent(type, { code: code, key: code }));
+    const walk = (on) => {
+      clearInterval(walkTimer); walkTimer = null;
+      if (walkKey) { key('keyup', walkKey); walkKey = null; }
+      if (!on) return;
+      const flip = () => { if (walkKey) key('keyup', walkKey); walkKey = walkKey === 'ArrowLeft' ? 'ArrowRight' : 'ArrowLeft'; key('keydown', walkKey); };
+      flip(); walkTimer = setInterval(flip, 700);
+    };
     const reset = () => {
-      hidden.clear(); drawOff = false; setRatio(baseRatio);
+      hidden.clear(); drawOff = false; setRatio(baseRatio); walk(false);
       for (const id of ['hud', 'overlay']) document.getElementById(id).style.display = '';
     };
     const table = document.createElement('div');
@@ -138,7 +153,7 @@
           requestAnimationFrame(tick);
         }, 1000);
       };
-      table.textContent = 'stand still, do not touch the screen (about 40 seconds)';
+      table.textContent = 'stand still, do not touch the screen (about 1 minute)';
       next();
     });
 
