@@ -343,6 +343,25 @@
       grp.add(mesh);
     }
 
+    // all built tables of a wing that are not popping in right now = ONE merged mesh (rebuilt only when a table is
+    // added or upgraded). A popping table is drawn on its own until its pop-in ends.
+    syncTableBatch(cid) {
+      const b = this.tableBatch[cid], ready = [];
+      let key = '';
+      for (const grp of this.tables[cid]) {
+        const ok = grp.visible && grp.scale.x === 1 && grp.scale.y === 1;
+        grp.userData.look.mesh.visible = !ok;
+        if (ok) { ready.push(grp); key += grp.id + ':' + grp.userData.look.level + ','; }
+      }
+      if (key === b.key) return;
+      b.key = key;
+      if (b.mesh) { this.scene.remove(b.mesh); b.mesh.geometry.dispose(); b.mesh = null; }
+      if (!ready.length) return;
+      for (const grp of ready) grp.updateMatrixWorld(true);
+      b.mesh = new THREE.Mesh(B.mergeMeshes(ready.map((grp) => grp.userData.look.mesh)), B.mat.vc);
+      this.scene.add(b.mesh);
+    }
+
     // upgrade looks for one wing: tables (top / tablecloth) and counter (top colour + lamps)
     makeLooks(accent) {
       return {
@@ -394,6 +413,7 @@
       this.counter2 = counter(W2, col.blue, this.w2mat(), this.looks.g);
       this.pop.ctr2 = { obj: this.counter2, shown: false, wing2: true, track: 'b_ctr2' };
       this.tables = { p: W1.tables.map((t) => this.tableMesh(t, col.purple)), g: W2.tables.map((t) => this.tableMesh(t, col.blue)) };
+      this.tableBatch = { p: { mesh: null, key: '' }, g: { mesh: null, key: '' } };
       this.pop.hire1 = { obj: this.add(this.deskMesh(W1.hireDesk, col.worker, 'helmet'), true), shown: false, track: 'b_hire1' };
       this.pop.chef1 = { obj: this.add(this.deskMesh(W1.chefDesk, col.chef, 'chef'), true), shown: false, track: 'b_chef1' };
       this.hire2 = this.add(this.deskMesh(W2.hireDesk, col.worker, 'helmet'), true);
@@ -533,6 +553,7 @@
         tn.seg1.rotation.x = Math.cos(t * 1.7 + tn.ph) * 0.3;
         tn.tip.rotation.z = Math.sin(t * 3.0 + tn.ph + 1) * 0.6;
       }
+      this.syncTableBatch('p'); this.syncTableBatch('g');
       let nt = 0;
       for (const tn of this.tentacles) {
         if (!tn.base.visible) continue;
