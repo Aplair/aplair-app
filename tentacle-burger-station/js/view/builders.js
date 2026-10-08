@@ -63,6 +63,25 @@
     return m;
   };
 
+  // several finished vertex-coloured meshes that never move -> ONE geometry (one draw call)
+  B.mergeMeshes = function (meshes) {
+    let count = 0;
+    const gs = meshes.map((m) => { m.updateMatrixWorld(true); const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrixWorld); count += g.attributes.position.count; return g; });
+    const pos = new Float32Array(count * 3), nor = new Float32Array(count * 3), clr = new Float32Array(count * 3);
+    let o = 0;
+    for (const g of gs) {
+      pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); clr.set(g.attributes.color.array, o * 3);
+      o += g.attributes.position.count;
+      g.dispose();
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    out.setAttribute('color', new THREE.BufferAttribute(clr, 3));
+    out.computeBoundingSphere(); out.computeBoundingBox();
+    return out;
+  };
+
   // instanced meshes: draw the first n and send ONLY those n matrices to the graphics chip. three.js would
   // otherwise re-send the whole buffer (all 3000 money notes...) every frame, which weak phones feel badly.
   B.flushInstances = function (mesh, n) {

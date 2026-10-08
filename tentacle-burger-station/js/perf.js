@@ -77,6 +77,24 @@
       b.textContent = hide ? 'HUD on' : 'HUD off';
     });
 
+    // which part of the game each draw call comes from (counted while the scene is drawn)
+    const calls = {};
+    const owner = (o) => {
+      let top = o; while (top.parent && top.parent !== view.scene) top = top.parent;
+      const ch = view.chars, it = view.items, w = view.world;
+      if (Object.values(it.meshes).includes(o)) return 'items';
+      if (o === ch.alien.p || o === ch.alien.g || o === ch.foot) return 'aliens';
+      for (const k in ch.batches) if (Object.values(ch.batches[k].parts).includes(o)) return 'workers';
+      if (top === ch.chef.group || top === ch.board) return 'chef';
+      if (o === view.fx.puffMesh || o === view.fx.sparkMesh) return 'fx';
+      if (w.tables && (w.tables.p.includes(top) || w.tables.g.includes(top))) return 'tables';
+      const gt = o.geometry && o.geometry.type;
+      if (gt === 'PlaneGeometry' || gt === 'RingGeometry' || gt === 'CircleGeometry') return 'floor';
+      return 'world';
+    };
+    const tally = function () { if (this.isInstancedMesh && this.count === 0) return; const k = this.userData.perfOwner || (this.userData.perfOwner = owner(this)); calls[k] = (calls[k] || 0) + 1; };
+    const hook = () => view.scene.traverse((o) => { if (o.isMesh && o.onBeforeRender !== tally) o.onBeforeRender = tally; });
+    hook();
     let frames = 0, last = performance.now(), worst = 0, prev = last;
     const count = (now) => { frames++; worst = Math.max(worst, now - prev); prev = now; requestAnimationFrame(count); };
     requestAnimationFrame(count);
@@ -89,7 +107,10 @@
         'FPS ' + (frames / secs).toFixed(0) + ' | frame ' + (1000 * secs / n).toFixed(0) + 'ms, worst ' + worst.toFixed(0) + 'ms<br>' +
         'code ' + js.toFixed(1) + 'ms = game ' + ms('game') + ' view ' + ms('view') + ' draw ' + ms('draw') + ' hud ' + ms('hud') + '<br>' +
         'calls ' + info.calls + ' tris ' + info.triangles + ' | ' + c.width + 'x' + c.height + ' px (x' + view.renderer.getPixelRatio() + ', screen x' + (window.devicePixelRatio || 1) + ')<br>' +
+        'by part: ' + Object.keys(calls).sort((x, y) => calls[y] - calls[x]).map((k) => k + ' ' + Math.round(calls[k] / n)).join(', ') + '<br>' +
         'GPU: ' + String(gpu).replace(/</g, '&lt;');
+      for (const k in calls) calls[k] = 0;
+      hook();
       for (const k in T) T[k] = 0;
       frames = 0; worst = 0; last = now;
     }, 1000);

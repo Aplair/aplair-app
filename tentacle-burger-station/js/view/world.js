@@ -26,6 +26,19 @@
       this.build();
     }
 
+    // walls, floors, rails... that never move or change: kept aside and merged per wing into ONE mesh after build()
+    addStatic(mesh, wing) { this.statics[wing].push(mesh); return mesh; }
+    mergeStatics() {
+      for (const wing of [1, 2]) {
+        const list = this.statics[wing];
+        if (!list.length) continue;
+        const mesh = new THREE.Mesh(B.mergeMeshes(list), wing === 2 ? this.w2shared : B.mat.vc);
+        for (const m of list) m.geometry.dispose();
+        this.scene.add(mesh);
+      }
+      this.statics = null;
+    }
+
     w2mat() { const m = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x3a4250 }); this.w2mats.push(m); return m; }
 
     add(obj, occluder) {
@@ -37,19 +50,21 @@
 
     build() {
       const L = this.cfg.LAYOUT, col = C();
-      this.buildFloor(L.WING1, L.W1, col.floor1a, col.floor1b, 0xd9cdea, 0xcfc1e3, null);
-      this.w2floorMat = this.w2mat();
-      this.buildFloor(L.WING2, L.W2, col.floor2a, col.floor2b, 0xcfdcf3, 0xc2d1ec, this.w2floorMat);
+      this.statics = { 1: [], 2: [] };
+      this.w2shared = this.w2mat(); // one dark-until-lit material for all merged Wing 2 walls / floor
+      this.buildFloor(L.WING1, L.W1, col.floor1a, col.floor1b, 0xd9cdea, 0xcfc1e3, 1);
+      this.buildFloor(L.WING2, L.W2, col.floor2a, col.floor2b, 0xcfdcf3, 0xc2d1ec, 2);
       this.buildWalls();
       this.buildPartition();
       this.buildStations();
       this.buildFurniture();
       this.buildStars();
+      this.mergeStatics();
       this.applyState(true);
     }
 
     // kitchen tiles grey-blue, the two rooms warm, the hall (dining) tinted
-    buildFloor(W, def, a, b, ca, cb, mat) {
+    buildFloor(W, def, a, b, ca, cb, wing) {
       const parts = [], plane = new THREE.PlaneGeometry(0.96, 0.96), strip = this.cfg.LAYOUT.STRIP, rooms = def.rooms;
       for (let x = W.x0; x < W.x1; x++) for (let z = W.z0; z < W.z1; z++) {
         const odd = (x + z) % 2 === 1, hall = z + 0.5 > strip, room = !hall && x + 0.5 < rooms.kitchen.x0;
@@ -59,9 +74,7 @@
       const w = W.x1 - W.x0, d = W.z1 - W.z0;
       parts.push({ g: B.box(w, 0.4, d), c: 0x8792a6, p: [W.x0 + w / 2, -0.2, W.z0 + d / 2] });
       parts.push({ g: B.box(w + 0.02, 0.08, 0.08), c: 0xf2c230, p: [W.x0 + w / 2, -0.04, W.z1 + 0.02] });
-      const m = B.mesh(parts, { material: mat || undefined, cast: false, receive: true });
-      this.add(m);
-      return m;
+      return this.addStatic(B.mesh(parts, { cast: false, receive: true }), wing);
     }
 
     // outer hull: tall back + left walls with windows, low rail on the front with one entrance gate per wing,
@@ -79,7 +92,7 @@
           parts.push({ g: B.sph(0.025, 4, 3), c: 0xffffff, p: [x + 0.05, 1.95, 0.04] });
           parts.push({ g: B.sph(0.02, 4, 3), c: 0xfff3b0, p: [x + 0.6, 1.62, 0.04] });
         }
-        this.add(B.mesh(parts, { material: s[2] === 2 ? this.w2mat() : undefined, receive: true }));
+        this.addStatic(B.mesh(parts, { receive: true }), s[2]);
       }
       {
         const parts = [];
@@ -91,7 +104,7 @@
           parts.push({ g: B.sph(0.025, 4, 3), c: 0xffffff, p: [0.04, 2.1, z - 0.3] });
         }
         parts.push({ g: B.box(0.5, H + 0.2, 0.5), c: 0xc8d0dc, p: [-0.1, (H + 0.2) / 2, -0.1] });
-        this.add(B.mesh(parts, { receive: true }));
+        this.addStatic(B.mesh(parts, { receive: true }), 1);
       }
       // low inner walls (rooms + kitchen), with a coloured top band per room
       [L.W1, L.W2].forEach((w, i) => {
@@ -104,10 +117,10 @@
         // door frames (posts) at every gap of the front wall
         const fz = L.STRIP;
         for (const r of w.walls) if (r.z1 - r.z0 < 0.5) for (const x of [r.x0, r.x1]) parts.push({ g: B.box(0.16, h + 0.35, 0.3), c: 0x9aa3b0, p: [x, (h + 0.35) / 2, fz] });
-        this.add(B.mesh(parts, { material: i ? this.w2mat() : undefined, receive: true }));
+        this.addStatic(B.mesh(parts, { receive: true }), i + 1);
       });
       // room signs over the doors
-      const sign = (x, z, c, w2) => this.add(B.mesh([{ g: B.box(1.1, 0.34, 0.06), c: c, p: [x, L.INNER_WALL_H + 0.55, z] }], { material: w2 ? this.w2mat() : undefined }));
+      const sign = (x, z, c, w2) => this.addStatic(B.mesh([{ g: B.box(1.1, 0.34, 0.06), c: c, p: [x, L.INNER_WALL_H + 0.55, z] }]), w2 ? 2 : 1);
       for (const [w, w2] of [[L.W1, false], [L.W2, true]]) { sign((w.rooms.hr.x0 + w.rooms.hr.x1) / 2, L.STRIP, col.worker, w2); sign((w.rooms.chef.x0 + w.rooms.chef.x1) / 2, L.STRIP, col.chef, w2); }
       // front rail with an entrance gate per wing (customers come in and leave here)
       {
@@ -124,7 +137,7 @@
         }
         parts.push({ g: B.box(0.1, 0.08, D), c: 0xaab4c4, p: [X1 + 0.12, rh, D / 2] });
         for (let zz = 0.5; zz < D; zz += 2) parts.push({ g: B.box(0.1, rh, 0.1), c: 0x8a95a8, p: [X1 + 0.12, rh / 2, zz] });
-        this.add(B.mesh(parts, { cast: false }));
+        this.addStatic(B.mesh(parts, { cast: false }), 1);
       }
       [L.W1, L.W2].forEach((w, i) => {
         const wing = i + 1, accent = wing === 1 ? col.purple : col.blue, gx = w.gate.x + 0.5, gw = 2.4, z = D + 0.12;
@@ -132,7 +145,7 @@
           { g: B.box(0.25, 2.2, 0.3), c: 0x56607a, p: [gx - gw / 2, 1.1, z] }, { g: B.box(0.25, 2.2, 0.3), c: 0x56607a, p: [gx + gw / 2, 1.1, z] },
           { g: B.box(gw + 0.25, 0.3, 0.3), c: 0x56607a, p: [gx, 2.3, z] }, { g: B.box(gw + 0.27, 0.08, 0.32), c: accent, p: [gx, 2.12, z] }
         ];
-        this.add(B.mesh(frame, { material: wing === 2 ? this.w2mat() : undefined }));
+        this.addStatic(B.mesh(frame), wing);
         const door = B.mesh([{ g: B.box(gw - 0.1, 0.12, 0.08), c: accent, p: [0, 0, 0] }, { g: B.box(gw - 0.1, 0.05, 0.1), c: 0xffffff, p: [0, -0.1, 0] }], { material: wing === 2 ? this.w2mat() : undefined });
         door.position.set(gx, 1.0, z);
         this.add(door);
@@ -152,7 +165,7 @@
         parts.push({ g: B.box(0.32, 0.08, z1 - z0), c: 0x9aa3b0, p: [x, h + 0.04, (z0 + z1) / 2] });
         return parts;
       };
-      this.add(B.mesh(striped(0, L.OPENING.z0).concat(striped(L.OPENING.z1, L.WING1.z1)), { receive: true }));
+      this.addStatic(B.mesh(striped(0, L.OPENING.z0).concat(striped(L.OPENING.z1, L.WING1.z1)), { receive: true }), 1);
       const a = L.DOOR.z - L.DOOR.w / 2, b = L.DOOR.z + L.DOOR.w / 2;
       this.openPart = this.add(B.mesh(striped(L.OPENING.z0, a - 0.13).concat(striped(b + 0.13, L.OPENING.z1))));
       const frame = [
