@@ -7,8 +7,14 @@
   const col = new THREE.Color();
 
   B.box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-  B.cyl = (rt, rb, h, seg) => new THREE.CylinderGeometry(rt, rb, h, seg || 16);
-  B.sph = (r, ws, hs) => new THREE.SphereGeometry(r, ws || 14, hs || 10);
+  B.cyl = (rt, rb, h, seg) => new THREE.CylinderGeometry(rt, rb, h, B.seg(seg || 16, 6));
+  B.sph = (r, ws, hs) => new THREE.SphereGeometry(r, B.seg(ws || 14, 6), B.seg(hs || 10, 4));
+
+  // round-shape smoothness. Shapes repeated many times (aliens, food, money) are built with less detail:
+  // they are small on screen, so it does not show, but the phone draws far fewer triangles.
+  B.detail = 1;
+  B.seg = (n, min) => Math.max(Math.min(n, min), Math.round(n * B.detail));
+  B.withDetail = (d, build) => { const old = B.detail; B.detail = d; try { return build(); } finally { B.detail = old; } };
 
   // part = { g: geometry, c: hex colour, p: [x,y,z], r: [rx,ry,rz], s: [sx,sy,sz] or number }
   B.merge = function (parts) {

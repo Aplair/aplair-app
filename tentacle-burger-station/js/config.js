@@ -317,6 +317,7 @@
     MAX_PIXEL_RATIO: 1.5,            // render sharpness cap (lower = faster on weak laptops)
     SHADOWS: true,                   // soft shadows under things
     SHADOW_MAP_SIZE: 1024,           // shadow detail
+    CROWD_DETAIL: 0.55,              // smoothness of round shapes on aliens, food and money (1 = full). Lower = far fewer triangles for phones
     OCCLUDER_FADE: 0.28,             // see-through amount for things in front of the chef (0 = invisible)
     // ================= FEEL (juice) =================
     ARC_TIME: 0.22,                  // seconds an item flies onto the tray

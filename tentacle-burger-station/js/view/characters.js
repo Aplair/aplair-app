@@ -6,7 +6,10 @@
   const Ch = TBS.Characters = {};
 
   // ---------- alien shapes (also used for the silhouette behind the Wing 2 door) ----------
-  Ch.purpleAlienGeometry = function () {
+  Ch.purpleAlienGeometry = () => B.withDetail(TBS.CONFIG.CROWD_DETAIL, purpleAlien);
+  Ch.greenAlienGeometry = () => B.withDetail(TBS.CONFIG.CROWD_DETAIL, greenAlien);
+
+  function purpleAlien() {
     const P = 0x9b4dde, D = 0x6a2aa8, W = 0xffffff, K = 0x14101c;
     const parts = [
       { g: B.sph(0.5, 18, 14), c: P, p: [0, 0.56, 0], s: [1.1, 0.86, 1.0] },
@@ -27,9 +30,9 @@
     parts.push({ g: B.cyl(0.04, 0.07, 0.4, 6), c: D, p: [-0.55, 0.55, 0.05], r: [0, 0, 1.0] });
     parts.push({ g: B.cyl(0.04, 0.07, 0.4, 6), c: D, p: [0.55, 0.55, 0.05], r: [0, 0, -1.0] });
     return B.merge(parts);
-  };
+  }
 
-  Ch.greenAlienGeometry = function () {
+  function greenAlien() {
     const G = 0x3b8cff, D = 0x1f5fbf, L = 0xa9d0ff, W = 0xffffff, K = 0x0c1018; // Wing 2 alien is blue
     return B.merge([
       { g: B.cyl(0.5, 0.55, 0.06, 18), c: L, p: [0, 0.03, 0] },
@@ -48,7 +51,7 @@
       { g: B.cyl(0.04, 0.07, 0.62, 6), c: D, p: [-0.38, 0.95, 0.05], r: [0.1, 0, 0.35] },
       { g: B.cyl(0.04, 0.07, 0.62, 6), c: D, p: [0.38, 0.95, 0.05], r: [0.1, 0, -0.35] }
     ]);
-  };
+  }
 
   // ---------- chef / worker rig ----------
   function makeRig(suit, hat) {

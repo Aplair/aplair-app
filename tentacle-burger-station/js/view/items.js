@@ -63,7 +63,7 @@
   class Items {
     constructor(view) {
       this.view = view; this.game = view.game; this.cfg = view.game.cfg; this.scene = view.scene;
-      const geos = geometries(), mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+      const geos = TBS.B.withDetail(this.cfg.CROWD_DETAIL, geometries), mat = new THREE.MeshLambertMaterial({ vertexColors: true });
       const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, noteA: 3000, noteB: 3000, noteTop: 900 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
       this.meshes = {};
       this.n = {};

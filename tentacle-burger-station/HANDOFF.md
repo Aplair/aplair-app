@@ -272,3 +272,9 @@ The owner's revision list (A–N) is being done in 4 parts. After each part: sel
 - Pacing 60 min: normal L37, fast L38, ads L33; leave 1-2%; ~85-95 floor steps still left after 1 h.
 - Hire Desk redesigned: one card per worker (Speed / Capacity pip bars) with ONE upgrade button that takes speed and capacity in turns (game.workerNext / upgradeWorkerNext / upgradeWorkerNextByAd), gems or FREE (ad, shared 3-min timer). Hire card at the bottom. hud.renderWorkers + .wcard CSS.
 - Panel lists scroll again: input.js no longer blocks wheel / touchmove inside .panel (page itself still never scrolls); .panel touch-action pan-y. Guide sending the chef to Wing 1 money while short of money for a Wing 2 build is intended (owner confirmed).
+
+## Phone speed (Oct 8, 2026)
+- Owner phone: Adreno 506 (weak GPU). index.html?perf shows FPS, time per part, triangles, GPU name and switches (js/perf.js; off without ?perf).
+- Phone results: game code is light; the cost is drawing. Late game had ~176k triangles (aliens 2188 / 1560 each, burger 536) and the shadow pass draws them all again. Shadows off alone: 18 FPS late game. Shadow type / map size changed little.
+- Fix 1: CROWD_DETAIL 0.55 builds aliens, food and money with fewer round-shape segments (B.withDetail in builders.js). Purple alien 2188 -> 876, blue 1560 -> 654, burger 536 -> 274. Looks the same at game zoom (checked side by side).
+- Next if still slow: cheaper shadows (fake floor shadows), then view.update time (8-11 ms on the phone).
