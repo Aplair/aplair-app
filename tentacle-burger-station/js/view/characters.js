@@ -132,7 +132,7 @@
       this.put('body', rig.body); this.put('leg', rig.legL); this.put('leg', rig.legR); this.put('arm', rig.armL); this.put('arm', rig.armR);
       if (rig.tray.visible) this.put('tray', rig.tray);
     }
-    end() { for (const k in this.parts) { const m = this.parts[k]; m.count = this.n[k]; m.instanceMatrix.needsUpdate = true; } }
+    end() { for (const k in this.parts) B.flushInstances(this.parts[k], this.n[k]); }
   }
 
   class Characters {
@@ -272,8 +272,8 @@
           this.foot.setMatrixAt(feet++, this.m);
         }
       }
-      for (const k of ['p', 'g']) { this.alien[k].count = Math.min(cnt[k], this.alien[k].instanceMatrix.count); this.alien[k].instanceMatrix.needsUpdate = true; }
-      this.foot.count = feet; this.foot.instanceMatrix.needsUpdate = true;
+      for (const k of ['p', 'g']) B.flushInstances(this.alien[k], Math.min(cnt[k], this.alien[k].instanceMatrix.count));
+      B.flushInstances(this.foot, feet);
     }
   }
 

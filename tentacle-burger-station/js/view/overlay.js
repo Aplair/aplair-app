@@ -40,8 +40,11 @@
     }
 
     place(e, p, opacity) {
-      e.d.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-50%)';
       const op = p.on ? opacity : 0;
+      if (p.on) { // only touch the page when the label really moved (weak phones redo layout for every change)
+        const tf = 'translate(' + p.x.toFixed(0) + 'px,' + p.y.toFixed(0) + 'px) translate(-50%,-50%)';
+        if (tf !== e.tf) { e.d.style.transform = tf; e.tf = tf; }
+      }
       if (Math.abs(op - e.op) > 0.01) { e.d.style.opacity = op.toFixed(2); e.op = op; }
     }
 

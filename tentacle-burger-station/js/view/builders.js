@@ -63,6 +63,16 @@
     return m;
   };
 
+  // instanced meshes: draw the first n and send ONLY those n matrices to the graphics chip. three.js would
+  // otherwise re-send the whole buffer (all 3000 money notes...) every frame, which weak phones feel badly.
+  B.flushInstances = function (mesh, n) {
+    mesh.count = n;
+    if (n === 0) return;
+    const a = mesh.instanceMatrix;
+    a.updateRange.offset = 0; a.updateRange.count = n * 16;
+    a.needsUpdate = true;
+  };
+
   // a canvas texture with text (used for small signs)
   B.textTexture = function (text, opts) {
     opts = opts || {};

@@ -89,6 +89,16 @@
     put(type, x, y, z, yaw, tx, tz, sc) {
       const mesh = this.meshes[type], i = this.n[type];
       if (i >= mesh.instanceMatrix.count) return;
+      const s0 = sc === undefined ? 1 : sc;
+      if (!tx && !tz) { // the usual case: only turned around the up axis -> write the matrix directly (much cheaper)
+        const a = mesh.instanceMatrix.array, o = i * 16, c = Math.cos(yaw || 0) * s0, sn = Math.sin(yaw || 0) * s0;
+        a[o] = c; a[o + 1] = 0; a[o + 2] = -sn; a[o + 3] = 0;
+        a[o + 4] = 0; a[o + 5] = s0; a[o + 6] = 0; a[o + 7] = 0;
+        a[o + 8] = sn; a[o + 9] = 0; a[o + 10] = c; a[o + 11] = 0;
+        a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
+        this.n[type] = i + 1;
+        return;
+      }
       this.e.set(tx || 0, yaw || 0, tz || 0);
       this.q.setFromEuler(this.e);
       this.v.set(x, y, z);
@@ -420,7 +430,7 @@
           if (f.land) f.land();
         }
       }
-      for (const k in this.meshes) { const m = this.meshes[k]; m.count = this.n[k]; m.instanceMatrix.needsUpdate = true; }
+      for (const k in this.meshes) TBS.B.flushInstances(this.meshes[k], this.n[k]);
     }
   }
 

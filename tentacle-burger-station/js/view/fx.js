@@ -60,7 +60,7 @@
         this.m.compose(this.v.set(p.x, p.y, p.z), this.q.identity(), this.s.set(sc, sc, sc));
         if (n < this.puffMesh.instanceMatrix.count) this.puffMesh.setMatrixAt(n++, this.m);
       }
-      this.puffMesh.count = n; this.puffMesh.instanceMatrix.needsUpdate = true;
+      TBS.B.flushInstances(this.puffMesh, n);
       // sparks
       n = 0;
       for (let i = this.sparks.length - 1; i >= 0; i--) {
@@ -73,8 +73,8 @@
         this.m.compose(this.v.set(s.x, s.y, s.z), this.q.setFromEuler(this.e), this.s.set(sc, sc, sc));
         if (n < this.sparkMesh.instanceMatrix.count) { this.sparkMesh.setMatrixAt(n, this.m); this.sparkMesh.setColorAt(n, this.c.setHex(s.c)); n++; }
       }
-      this.sparkMesh.count = n; this.sparkMesh.instanceMatrix.needsUpdate = true;
-      if (this.sparkMesh.instanceColor) this.sparkMesh.instanceColor.needsUpdate = true;
+      TBS.B.flushInstances(this.sparkMesh, n);
+      if (n && this.sparkMesh.instanceColor) { const ic = this.sparkMesh.instanceColor; ic.updateRange.offset = 0; ic.updateRange.count = n * 3; ic.needsUpdate = true; }
       // elastic pop-in
       for (let i = this.tweens.length - 1; i >= 0; i--) {
         const tw = this.tweens[i];
