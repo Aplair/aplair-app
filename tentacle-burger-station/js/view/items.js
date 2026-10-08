@@ -5,6 +5,7 @@
 
   const B = TBS.B, U = TBS.U;
   const STEP = { tentacle: 0.15, burger: 0.27, goo: 0.25, dish: 0.2, bill: 0.05, bundle: 0.15, plate: 0.07 };
+  const NOTE_A = 0x3fae55, NOTE_B = 0x4cc463; // the two side shades of stacked money notes (layer lines)
 
   function geometries() {
     const cfg = TBS.CONFIG, col = cfg.COLORS;
@@ -42,13 +43,8 @@
         { g: B.box(0.47, 0.012, 0.27), c: 0x6fe38a, p: [0, 0.141, 0] }
       ]),
       // flat notes for money piles: two side shades (layer lines like a real stack) and a printed top note
-      noteA: B.merge([{ g: B.box(0.5, 0.045, 0.28), c: 0x3fae55, p: [0, 0.0225, 0] }]),
-      noteB: B.merge([{ g: B.box(0.5, 0.045, 0.28), c: 0x4cc463, p: [0, 0.0225, 0] }]),
-      // a whole covered layer of a pile as ONE box (looks the same as its notes side by side, far less to draw)
-      slabA: B.merge([{ g: B.box(0.5 * cfg.MONEY_BLOCK_COLS, 0.045, 0.28 * cfg.MONEY_BLOCK_ROWS), c: 0x3fae55, p: [0, 0.0225, 0] }]),
-      slabB: B.merge([{ g: B.box(0.5 * cfg.MONEY_BLOCK_COLS, 0.045, 0.28 * cfg.MONEY_BLOCK_ROWS), c: 0x4cc463, p: [0, 0.0225, 0] }]),
-      tslabA: B.merge([{ g: B.box(0.5 * cfg.TIP_BLOCK_COLS, 0.045, 0.28 * cfg.TIP_BLOCK_ROWS), c: 0x3fae55, p: [0, 0.0225, 0] }]),
-      tslabB: B.merge([{ g: B.box(0.5 * cfg.TIP_BLOCK_COLS, 0.045, 0.28 * cfg.TIP_BLOCK_ROWS), c: 0x4cc463, p: [0, 0.0225, 0] }]),
+      // every hidden note / covered layer of a money pile: one white box scaled and coloured per instance (one draw call)
+      block: B.merge([{ g: B.box(1, 0.045, 1), c: 0xffffff, p: [0, 0.0225, 0] }]),
       noteTop: B.merge([
         { g: B.box(0.5, 0.045, 0.28), c: 0x4cc463, p: [0, 0.0225, 0] },
         { g: B.box(0.44, 0.004, 0.22), c: 0x9ff0ae, p: [0, 0.047, 0] },
@@ -69,21 +65,35 @@
     constructor(view) {
       this.view = view; this.game = view.game; this.cfg = view.game.cfg; this.scene = view.scene;
       const geos = TBS.B.withDetail(this.cfg.CROWD_DETAIL, geometries), mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-      const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, noteA: 3000, noteB: 3000, noteTop: 900, slabA: 120, slabB: 120, tslabA: 400, tslabB: 400 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
+      const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, block: 7000, noteTop: 900 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
       this.meshes = {};
       this.n = {};
       for (const k in geos) {
-        const m = new THREE.InstancedMesh(geos[k], mat, caps[k]);
+        // the money block gets its own material: three.js picks 'per-piece colour' mode only when a material is first used
+        const m = new THREE.InstancedMesh(geos[k], k === 'block' ? new THREE.MeshLambertMaterial({ vertexColors: true }) : mat, caps[k]);
         m.castShadow = true; m.frustumCulled = false; m.count = 0;
         this.scene.add(m);
         this.meshes[k] = m; this.n[k] = 0;
+        if (k === 'block') m.setColorAt(0, new THREE.Color(1, 1, 1)); // makes the per-instance colour buffer
       }
       this.stacks = new Map();
       this.arcFrom = new Map();
       this.flyers = [];
       this.collectAcc = {};          // pile key -> $ collected but not yet shown as a flying layer
       this.inflight = {};
+      this.blockColor = new THREE.Color();
       this.m = new THREE.Matrix4(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(); this.v = new THREE.Vector3(); this.s = new THREE.Vector3();
+    }
+
+    // a flat money box: sx x sz in size, coloured (no turn)
+    putBlock(x, y, z, sx, sz, color) {
+      const mesh = this.meshes.block, i = this.n.block;
+      if (i >= mesh.instanceMatrix.count) return;
+      const a = mesh.instanceMatrix.array, o = i * 16;
+      a[o] = sx; a[o + 1] = 0; a[o + 2] = 0; a[o + 3] = 0; a[o + 4] = 0; a[o + 5] = 1; a[o + 6] = 0; a[o + 7] = 0;
+      a[o + 8] = 0; a[o + 9] = 0; a[o + 10] = sz; a[o + 11] = 0; a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
+      this.blockColor.setHex(color).toArray(mesh.instanceColor.array, i * 3);
+      this.n.block = i + 1;
     }
 
     put(type, x, y, z, yaw, tx, tz, sc) {
@@ -214,12 +224,13 @@
       if (n <= 0) return;
       const layers = Math.ceil(n / per), lastFull = n % per === 0;
       const covered = layers - (lastFull ? 1 : 2); // layers fully hidden under others: one box each
-      for (let layer = 0; layer < covered; layer++) this.put((tip ? 'tslab' : 'slab') + (layer % 2 ? 'B' : 'A'), x, layer * th, z, 0);
+      for (let layer = 0; layer < covered; layer++) this.putBlock(x, layer * th, z, 0.5 * cols, 0.28 * rows, layer % 2 ? NOTE_B : NOTE_A);
       for (let i = Math.max(0, covered) * per; i < n; i++) {
         const layer = Math.floor(i / per), j = i % per, c = j % cols, r = Math.floor(j / cols);
         const top = layer === layers - 1 || (layer === layers - 2 && !lastFull && j >= n % per); // notes you can see from above
-        const type = top ? 'noteTop' : (layer % 2 ? 'noteB' : 'noteA');
-        this.put(type, x + (c - (cols - 1) / 2) * 0.5, layer * th, z + (r - (rows - 1) / 2) * 0.28, 0);
+        const nx = x + (c - (cols - 1) / 2) * 0.5, nz = z + (r - (rows - 1) / 2) * 0.28;
+        if (top) this.put('noteTop', nx, layer * th, nz, 0);
+        else this.putBlock(nx, layer * th, nz, 0.5, 0.28, layer % 2 ? NOTE_B : NOTE_A);
       }
     }
 
@@ -431,6 +442,8 @@
         }
       }
       for (const k in this.meshes) TBS.B.flushInstances(this.meshes[k], this.n[k]);
+      const bc = this.meshes.block.instanceColor;
+      if (this.n.block) { bc.updateRange.offset = 0; bc.updateRange.count = this.n.block * 3; bc.needsUpdate = true; }
     }
   }
 

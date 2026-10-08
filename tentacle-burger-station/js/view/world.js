@@ -362,6 +362,18 @@
       this.scene.add(b.mesh);
     }
 
+    setCounterLook(look, level) {
+      const w = look.ctrDims.w, d = look.ctrDims.d, lamps = [];
+      look.ctrTopMesh.geometry.dispose();
+      look.ctrTopMesh.geometry = B.merge([{ g: B.box(w + 0.16, 0.1, d + 0.12), c: level < 0 ? 0xe0a05a : COUNTER_TOP[Math.min(level, COUNTER_TOP.length - 1)], p: [0, 0.95, 0] }]);
+      for (let i = 0; i < 5; i++) {
+        const p = d >= w ? [0, 1.05, -d / 2 + 0.2 + i * 0.22] : [-w / 2 + 0.2 + i * 0.22, 1.05, -d / 2 + 0.08]; // along the long side, at the kitchen end
+        lamps.push({ g: B.sph(0.07, 8, 6), c: i <= level ? 0x6fff9a : 0x3a4250, p: p });
+      }
+      look.lampMesh.geometry.dispose();
+      look.lampMesh.geometry = B.merge(lamps);
+    }
+
     // upgrade looks for one wing: tables (top / tablecloth) and counter (top colour + lamps)
     makeLooks(accent) {
       return {
@@ -396,16 +408,13 @@
           { g: B.box(w, 0.9, d), c: 0xf3f5f8, p: [0, 0.45, 0] },
           { g: B.box(w + 0.04, 0.14, d + 0.04), c: stripe, p: [0, 0.6, 0] }
         ], { material: mat, receive: true });
-        const top = new THREE.Mesh(B.box(w + 0.16, 0.1, d + 0.12), look.ctrTop);
-        top.position.y = 0.95; top.receiveShadow = true;
-        m.add(top); look.ctrTopMesh = top;
-        // storage lamps on the counter end: one more lights up per counter upgrade
-        for (let i = 0; i < 5; i++) {
-          const lamp = new THREE.Mesh(B.sph(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x3a4250 }));
-          if (d >= w) lamp.position.set(0, 1.05, -d / 2 + 0.2 + i * 0.22); // lamps along the long side, at the kitchen end
-          else lamp.position.set(-w / 2 + 0.2 + i * 0.22, 1.05, -d / 2 + 0.08);
-          m.add(lamp); look.lamps.push(lamp);
-        }
+        // coloured top = one mesh, the 5 storage lamps = one mesh (one more lights up per counter upgrade);
+        // both are rebuilt in their new colours by setCounterLook (2 draw calls instead of 6)
+        look.ctrTopMesh = new THREE.Mesh(new THREE.BufferGeometry(), B.mat.vc);
+        look.lampMesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true }));
+        look.ctrDims = { w: w, d: d };
+        m.add(look.ctrTopMesh, look.lampMesh);
+        this.setCounterLook(look, -1);
         m.position.set((r.x0 + r.x1) / 2, 0, (r.z0 + r.z1) / 2);
         return this.add(m);
       };
@@ -523,15 +532,14 @@
       const g = this.game;
       for (const cid of ['p', 'g']) {
         const ct = g.chains[cid].counter, lk = this.looks[cid];
-        if (cid === 'g') { const vis = g.wing2Open; lk.ctrTopMesh.visible = vis; lk.lamps.forEach((l) => { l.visible = vis; }); } // dark wing: no lit parts
+        if (cid === 'g') { const vis = g.wing2Open; lk.ctrTopMesh.visible = vis; lk.lampMesh.visible = vis; } // dark wing: no lit parts
         for (const tb of ct.tables) { // each table: white top -> coloured top; a tablecloth from level 2; gold rim at max
           const grp = this.tables[cid][tb.idx];
           if (grp) this.setTableLevel(grp, tb.level);
         }
         if (ct.level !== lk.counterLevel) { // counter: top colour + one lamp per storage level
           lk.counterLevel = ct.level;
-          lk.ctrTop.color.setHex(COUNTER_TOP[Math.min(ct.level, COUNTER_TOP.length - 1)]);
-          lk.lamps.forEach((l, i) => l.material.color.setHex(i <= ct.level ? 0x6fff9a : 0x3a4250));
+          this.setCounterLook(lk, ct.level);
         }
       }
       for (const id in this.machineLook) {
