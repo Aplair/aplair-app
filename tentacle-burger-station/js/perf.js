@@ -90,7 +90,7 @@
     });
     button('HUD off', (b) => {
       const hide = b.textContent === 'HUD off';
-      for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = hide ? 'none' : '';
+      for (const id of ['hud', 'overlay']) document.getElementById(id).style.display = hide ? 'none' : '';
       b.textContent = hide ? 'HUD on' : 'HUD off';
     });
 
@@ -110,13 +110,14 @@
       ['normal', () => {}],
       ['no world', () => hidden.add('world')], ['no floor', () => hidden.add('floor')], ['no aliens', () => hidden.add('aliens')],
       ['no items', () => hidden.add('items')], ['no workers+chef', () => { hidden.add('workers'); hidden.add('chef'); }],
-      ['no labels/HUD', () => { for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = 'none'; }],
+      ['no labels', () => { document.getElementById('overlay').style.display = 'none'; }],
+      ['no HUD', () => { document.getElementById('hud').style.display = 'none'; }],
       ['sharp 1.25', () => setRatio(1.25)], ['sharp 1', () => setRatio(1)],
       ['draw off', () => { drawOff = true; }]
     ];
     const reset = () => {
       hidden.clear(); drawOff = false; setRatio(baseRatio);
-      for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = '';
+      for (const id of ['hud', 'overlay']) document.getElementById(id).style.display = '';
     };
     const table = document.createElement('div');
     table.style.cssText = 'margin-top:4px;white-space:pre;';

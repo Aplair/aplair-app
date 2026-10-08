@@ -11,12 +11,13 @@
   const narrow = () => window.innerWidth < 640; // phone upright: short button labels
 
   class Confetti {
-    constructor(canvas) { this.c = canvas; this.x = canvas.getContext('2d'); this.p = []; this.on = false; }
+    // the full-screen confetti sheet is hidden while empty: weak phones otherwise blend it over the game every frame
+    constructor(canvas) { this.c = canvas; this.x = canvas.getContext('2d'); this.p = []; this.on = false; canvas.style.display = 'none'; }
     burst(n) {
       const w = this.c.width = window.innerWidth, h = this.c.height = window.innerHeight;
       const cols = ['#ff5a7a', '#ffd23a', '#37b6ff', '#9b4dde', '#ff9a2e', '#ffffff', '#2fe0c8'];
       for (let i = 0; i < n; i++) this.p.push({ x: w / 2 + (Math.random() - 0.5) * w * 0.5, y: h * 0.32, vx: (Math.random() - 0.5) * 700, vy: -Math.random() * 650 - 150, r: Math.random() * 6, vr: (Math.random() - 0.5) * 14, s: 6 + Math.random() * 7, c: cols[i % cols.length], t: 0 });
-      this.on = true;
+      this.on = true; this.c.style.display = '';
     }
     update(dt) {
       if (!this.on) return;
@@ -28,7 +29,7 @@
         if (p.y > h + 20 || p.t > 3) { this.p.splice(i, 1); continue; }
         x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); x.restore();
       }
-      if (!this.p.length) { this.on = false; x.clearRect(0, 0, this.c.width, h); }
+      if (!this.p.length) { this.on = false; x.clearRect(0, 0, this.c.width, h); this.c.style.display = 'none'; }
     }
   }
 
