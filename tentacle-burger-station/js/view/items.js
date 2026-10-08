@@ -61,6 +61,8 @@
     };
   }
 
+  const NO_SHIFT = [0, 0, 0];
+
   class Items {
     constructor(view) {
       this.view = view; this.game = view.game; this.cfg = view.game.cfg; this.scene = view.scene;
@@ -170,11 +172,17 @@
       return { x: cx - lz, y: 1.4 + layer * STEP[m.inType] * 0.8, z: cz + lx };
     }
 
+    // the Tentacle Pad drawn from the owner's picture has its tray elsewhere: its pile is shown there (a look only)
+    pileShift(src) {
+      const A = this.cfg.PAD_ART;
+      return A && A.on && TBS.Art && TBS.Art.pad && src.itemType === 'tentacle' ? A.pile : NO_SHIFT;
+    }
+
     pilePos(key) {
       const g = this.game, ch = g.chains;
       if (key === 'bin:p' || key === 'bin:g') { const b = (key === 'bin:g' ? this.cfg.LAYOUT.W2 : this.cfg.LAYOUT.W1).bin; return { x: (b.x0 + b.x1) / 2, y: 1.05, z: (b.z0 + b.z1) / 2 }; } // into the bin's mouth
       const src = { pad: ch.p.source, goo: ch.g.source }[key];
-      if (src) return { x: src.pileX, y: 0.75 + Math.min(src.pile, 12) / 4 * 0.15, z: src.pileZ };
+      if (src) { const o = this.pileShift(src); return { x: src.pileX + o[0], y: (o !== NO_SHIFT ? o[1] + 0.11 : 0.75) + Math.min(src.pile, 12) / 4 * 0.15, z: src.pileZ + o[2] }; }
       const id = key.replace(':in', ''), m = this.machineById(id);
       if (m) {
         if (key.indexOf(':in') > 0) { const p = this.inSlot(m, Math.max(0, Math.min(m.input, 30) - 1)); return { x: p.x, y: p.y + 0.15, z: p.z }; }
@@ -391,7 +399,8 @@
         const c = ch[id];
         if (id === 'g' && !g.wing2Open && !w.pop.goo.shown) continue;
         const s = c.source;
-        this.heap(s.itemType, Math.max(0, s.pile - inf(s.id)), s.pileX, 0.64, s.pileZ, s.itemType === 'tentacle' ? 4 : 3, s.itemType === 'tentacle' ? 1 : 2, 0.34, 0.32); // along the pad's long side (x)
+        const o = this.pileShift(s);
+        this.heap(s.itemType, Math.max(0, s.pile - inf(s.id)), s.pileX + o[0], o !== NO_SHIFT ? o[1] : 0.64, s.pileZ + o[2], o !== NO_SHIFT ? this.cfg.PAD_ART.pileGrid[0] : s.itemType === 'tentacle' ? 4 : 3, o !== NO_SHIFT ? this.cfg.PAD_ART.pileGrid[1] : s.itemType === 'tentacle' ? 1 : 2, 0.34, 0.32); // along the pad's long side (x)
         for (const m of c.machines) {
           if (!m.built || (id === 'g' && !w.pop.g1.shown) || (m.id === 'm2' && !w.pop.m2.shown)) continue;
           const nin = Math.min(Math.max(0, m.input - inf(m.id + ':in')), 36);

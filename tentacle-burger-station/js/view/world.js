@@ -33,6 +33,7 @@
         const list = this.statics[wing];
         if (!list.length) continue;
         const mesh = new THREE.Mesh(B.mergeMeshes(list), wing === 2 ? this.w2shared : B.mat.vc);
+        mesh.renderOrder = -2; // floors + walls first: picture-made stations (renderOrder -1) are drawn on them, everything else after
         for (const m of list) m.geometry.dispose();
         this.scene.add(mesh);
       }
@@ -238,6 +239,45 @@
       return m;
     }
 
+    // the owner's picture of the Tentacle Pad instead of the built shapes: one sheet that faces the camera (the camera never
+    // turns, so a picture drawn from the same angle looks 3D). It ignores depth and is drawn right after floors and walls,
+    // before everything else, so people, items and the tentacle pile always come on top of it. One draw call.
+    usePadArt(pcx, pcz) {
+      const A = this.cfg.PAD_ART, art = TBS.Art.pad, W = A.width, H = W * art.h / art.w;
+      const geo = new THREE.PlaneGeometry(W, H).translate((0.5 - A.anchor[0]) * W, (A.anchor[1] - 0.5) * H, 0);
+      const mat = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
+      mat.visible = false; // until the picture is ready
+      const sheet = new THREE.Mesh(geo, mat);
+      sheet.renderOrder = -1;
+      const grp = new THREE.Group();
+      grp.position.set(pcx, 0, pcz);
+      grp.add(sheet);
+      this.scene.add(grp);
+      grp.updateMatrixWorld(true);
+      const yaw = this.cfg.CAM_YAW_DEG * Math.PI / 180, pit = this.cfg.CAM_PITCH_DEG * Math.PI / 180;
+      sheet.lookAt(pcx + Math.sin(yaw) * Math.cos(pit), Math.sin(pit), pcz + Math.cos(yaw) * Math.cos(pit));
+      this.padArt = { grp: grp, mat: mat, look: -1 };
+      this.padMesh.visible = false; // the built pad stays only as the see-through-fade box
+      for (const t of this.tentacles) t.base.visible = false;
+      this.pop.src1 = { obj: grp, shown: false, track: 'b_src1' };
+      this.setPadLook(A.looks[0] - 1);
+    }
+
+    setPadLook(i) {
+      const a = this.padArt;
+      if (!a || a.look === i) return;
+      a.look = i;
+      const im = new Image();
+      im.onload = () => {
+        if (a.look !== i) return;
+        const t = new THREE.Texture(im);
+        t.minFilter = THREE.LinearMipmapLinearFilter; t.needsUpdate = true;
+        if (a.mat.map) a.mat.map.dispose();
+        a.mat.map = t; a.mat.visible = true; a.mat.needsUpdate = true;
+      };
+      im.src = TBS.Art.pad.looks[i];
+    }
+
     setMachineLook(m, top, level) {
       const old = m.body.geometry;
       m.body.geometry = B.merge(m.baseParts.concat([{ g: B.box(1.3, 0.18, 2.85), c: top, p: [-0.425, 1.35, 0] }]));
@@ -276,6 +316,7 @@
         if (!i) this.tentInst = [seg1, seg2].map((sg) => { const im = new THREE.InstancedMesh(sg.geometry, B.mat.vcInst, 5); im.count = 0; im.frustumCulled = false; this.scene.add(im); return im; });
       }
       this.pop.src1 = { obj: this.padMesh, extra: this.tentacles.map((t) => t.base), shown: false, track: 'b_src1' };
+      if (this.cfg.PAD_ART && this.cfg.PAD_ART.on && TBS.Art && TBS.Art.pad) this.usePadArt(pcx, pcz);
       const mk = (def, accent, glow, id) => {
         const m = this.machineMesh(accent, glow);
         m.group.position.set((def.x0 + def.x1) / 2, 0, (def.z0 + def.z1) / 2);
@@ -541,6 +582,10 @@
           lk.counterLevel = ct.level;
           this.setCounterLook(lk, ct.level);
         }
+      }
+      if (this.padArt) { // pad level -> its picture
+        const l = g.levelOf('pad'), looks = this.cfg.PAD_ART.looks;
+        if (l) this.setPadLook(looks[Math.min(l.lv, looks.length) - 1] - 1);
       }
       for (const id in this.machineLook) {
         const ml = this.machineLook[id];
