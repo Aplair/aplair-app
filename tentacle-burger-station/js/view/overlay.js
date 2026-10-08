@@ -14,6 +14,13 @@
   class Overlay {
     constructor(view, root) {
       this.view = view; this.game = view.game; this.root = root;
+      // all labels sit in ONE inner sheet. When the camera slides, only this sheet moves (one change per frame);
+      // each label keeps its place on the sheet, so the phone does not redo every label every frame while you walk.
+      // (the camera never turns or zooms, so a camera move shifts every label by the same amount)
+      this.sheet = document.createElement('div');
+      this.sheet.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;will-change:transform;';
+      root.appendChild(this.sheet);
+      this.sx = 0; this.sy = 0; this.sheetTf = '';
       this.els = new Map();
       this.floats = [];
       this.v = new THREE.Vector3();
@@ -31,7 +38,7 @@
         const d = document.createElement('div');
         d.className = cls;
         if (html !== undefined) d.innerHTML = html;
-        this.root.appendChild(d);
+        this.sheet.appendChild(d);
         e = { d: d, html: html, cls: cls, seen: true, op: -1 };
         this.els.set(key, e);
       }
@@ -42,7 +49,7 @@
     place(e, p, opacity) {
       const op = p.on ? opacity : 0;
       if (p.on) { // only touch the page when the label really moved (weak phones redo layout for every change)
-        const tf = 'translate(' + p.x.toFixed(0) + 'px,' + p.y.toFixed(0) + 'px) translate(-50%,-50%)';
+        const tf = 'translate(' + (p.x - this.sx).toFixed(0) + 'px,' + (p.y - this.sy).toFixed(0) + 'px) translate(-50%,-50%)';
         if (tf !== e.tf) { e.d.style.transform = tf; e.tf = tf; }
       }
       if (Math.abs(op - e.op) > 0.01) {
@@ -65,7 +72,7 @@
       const d = document.createElement('div');
       d.className = 'float ' + (cls || '');
       d.textContent = text;
-      this.root.appendChild(d);
+      this.sheet.appendChild(d);
       this.floats.push({ d: d, x: x, y: y, z: z, t: 0 });
       if (this.floats.length > 24) { const f = this.floats.shift(); f.d.remove(); }
     }
@@ -90,6 +97,11 @@
     update(dt) {
       const g = this.game, pl = g.player, cfg = g.cfg;
       for (const e of this.els.values()) e.seen = false;
+      // where the world origin is on screen = how far the sheet slides
+      const o = this.project(0, 0, 0);
+      this.sx = Math.round(o.x); this.sy = Math.round(o.y);
+      const stf = 'translate(' + this.sx + 'px,' + this.sy + 'px)';
+      if (stf !== this.sheetTf) { this.sheet.style.transform = stf; this.sheetTf = stf; }
       // where the chef + stack are on screen
       const feet = this.project(pl.x, 0, pl.z), top = this.project(pl.x, 1.9 + pl.stack.length * 0.22, pl.z);
       const half = Math.abs(this.project(pl.x + 0.5, 0, pl.z).x - feet.x) + 6;
@@ -172,7 +184,7 @@
         const k = f.t / 1.3;
         if (k >= 1) { f.d.remove(); this.floats.splice(i, 1); continue; }
         const p = this.project(f.x, f.y + k * 1.2, f.z);
-        f.d.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-50%) scale(' + (k < 0.15 ? 0.6 + k / 0.15 * 0.4 : 1).toFixed(2) + ')';
+        f.d.style.transform = 'translate(' + (p.x - this.sx).toFixed(1) + 'px,' + (p.y - this.sy).toFixed(1) + 'px) translate(-50%,-50%) scale(' + (k < 0.15 ? 0.6 + k / 0.15 * 0.4 : 1).toFixed(2) + ')';
         f.d.style.opacity = (k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3).toFixed(2);
       }
     }

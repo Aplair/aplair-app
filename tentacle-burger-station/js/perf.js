@@ -114,22 +114,40 @@
       ['no HUD', () => { document.getElementById('hud').style.display = 'none'; }],
       ['sharp 1.25', () => setRatio(1.25)], ['sharp 1', () => setRatio(1)],
       ['draw off', () => { drawOff = true; }],
-      // the same while walking: the test presses left / right by itself (camera and labels move every frame)
-      ['WALK normal', () => walk(true)],
-      ['WALK no labels', () => { walk(true); document.getElementById('overlay').style.display = 'none'; }],
-      ['WALK no HUD', () => { walk(true); document.getElementById('hud').style.display = 'none'; }],
-      ['WALK no world', () => { walk(true); hidden.add('world'); }],
-      ['WALK draw off', () => { walk(true); drawOff = true; }]
+      // the same while walking a real trip: from the far corner of Wing 1 to the far corner of Wing 2 (or the end
+      // of Wing 1 while Wing 2 is closed), then back. The test steers the chef by itself; each row = one trip.
+      ['WALK normal', () => {}, true],
+      ['WALK no labels', () => { document.getElementById('overlay').style.display = 'none'; }, true],
+      ['WALK no HUD', () => { document.getElementById('hud').style.display = 'none'; }, true],
+      ['WALK no world', () => hidden.add('world'), true],
+      ['WALK draw off', () => { drawOff = true; }, true]
     ];
-    let walkTimer = null, walkKey = null;
-    const key = (type, code) => window.dispatchEvent(new KeyboardEvent(type, { code: code, key: code }));
-    const walk = (on) => {
-      clearInterval(walkTimer); walkTimer = null;
-      if (walkKey) { key('keyup', walkKey); walkKey = null; }
-      if (!on) return;
-      const flip = () => { if (walkKey) key('keyup', walkKey); walkKey = walkKey === 'ArrowLeft' ? 'ArrowRight' : 'ArrowLeft'; key('keydown', walkKey); };
-      flip(); walkTimer = setInterval(flip, 700);
+    const game = M.game, L = game.cfg.LAYOUT;
+    const free = (x, z) => { const nv = game.nav, id = nv.nearestFree(nv.idx(x, z)); return id < 0 ? { x: x, z: z } : nv.center(id); };
+    const ends = () => [free(1.5, 1.5), game.wing2Open ? free(L.WING2.x1 - 1.5, L.WING2.z1 - 1.5) : free(L.WING1.x1 - 1.5, L.WING1.z1 - 1.5)];
+    let route = null, leg = 0;
+    const steer = { x: 0, z: 0, mag: 1, source: 'keyboard' };
+    const upd = game.update;
+    let goal = null, stuckT = 0, sideT = 0, sideDir = 1, lastX = 0, lastZ = 0;
+    game.update = function (dt, inp) {
+      if (route && route.length) {
+        const p = game.player, t = route[0], dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
+        if (d < 0.5) route.shift();
+        else {
+          // blocked (an alien in the way, a corner): step sideways a moment, then find a new path from here
+          if (Math.hypot(p.x - lastX, p.z - lastZ) < 0.5 * dt) stuckT += dt; else stuckT = 0;
+          lastX = p.x; lastZ = p.z;
+          if (stuckT > 0.6) { stuckT = 0; sideT = 0.5; sideDir = -sideDir; }
+          if (sideT > 0) { sideT -= dt; steer.x = -dz / d * sideDir; steer.z = dx / d * sideDir; if (sideT <= 0 && goal) route = game.nav.findPath(p.x, p.z, goal.x, goal.z); }
+          else { steer.x = dx / d; steer.z = dz / d; }
+          inp = steer;
+          game.player.dwell = 0; // never stop long enough on a circle: the test must not buy things or open windows
+        }
+      }
+      return upd.call(this, dt, inp);
     };
+    const startTrip = () => { const e = ends(), p = game.player; goal = e[(leg++) % 2 === 0 ? 1 : 0]; route = game.nav.findPath(p.x, p.z, goal.x, goal.z); stuckT = 0; sideT = 0; };
+    const walk = (on) => { if (!on) route = null; };
     const reset = () => {
       hidden.clear(); drawOff = false; setRatio(baseRatio); walk(false);
       for (const id of ['hud', 'overlay']) document.getElementById(id).style.display = '';
@@ -140,20 +158,34 @@
     button('AUTO TEST', (b) => {
       if (b.disabled) return;
       b.disabled = true;
-      const rows = []; let i = 0;
+      const rows = []; let i = 0; b.atStart = false;
       const next = () => {
         reset();
         if (i >= steps.length) { b.disabled = false; b.textContent = 'AUTO TEST'; table.textContent = 'AUTO TEST (FPS, ms per frame):\n' + rows.join('\n'); return; }
-        const [name, apply] = steps[i++];
+        const [name, apply, walking] = steps[i++];
+        if (walking && i > 1 && !steps[i - 2][2] && !b.atStart) { // before the first walk row: go to the Wing 1 corner (not measured)
+          i--; b.atStart = true; leg = 1; startTrip(); b.textContent = 'walking to the start...';
+          const t0 = performance.now(), wait = () => { if (route && route.length && performance.now() - t0 < 30000) setTimeout(wait, 200); else { route = null; leg = 0; next(); } };
+          return wait();
+        }
         apply();
         b.textContent = 'testing ' + i + '/' + steps.length + '...';
-        setTimeout(() => {           // 1 s to settle, then measure 3 s
+        const measure = () => {      // standing: 3 s. Walking: until the trip ends (at most 25 s)
+          if (walking) startTrip();
           let n = 0; const t0 = performance.now();
-          const tick = () => { n++; if (performance.now() - t0 < 3000) requestAnimationFrame(tick); else { const ms = (performance.now() - t0) / n; rows.push(name.padEnd(16) + (1000 / ms).toFixed(0).padStart(3) + ' FPS ' + ms.toFixed(0).padStart(3) + ' ms'); next(); } };
+          const done = () => walking ? (!route || !route.length || performance.now() - t0 > 25000) : performance.now() - t0 >= 3000;
+          const tick = () => {
+            if (walking && game.paused) { // a window (level up...) stopped the game: the walk numbers would be wrong
+              route = null; reset(); b.disabled = false; b.textContent = 'AUTO TEST';
+              table.textContent = 'AUTO TEST (FPS, ms per frame):\n' + rows.join('\n') + '\nWALK stopped: a window opened. Close it, then press AUTO TEST again.';
+              return;
+            }
+            n++; if (!done()) requestAnimationFrame(tick); else { const ms = (performance.now() - t0) / n; route = null; rows.push(name.padEnd(16) + (1000 / ms).toFixed(0).padStart(3) + ' FPS ' + ms.toFixed(0).padStart(3) + ' ms' + (walking ? ' (' + ((performance.now() - t0) / 1000).toFixed(0) + ' s)' : '')); next(); } };
           requestAnimationFrame(tick);
-        }, 1000);
+        };
+        setTimeout(measure, walking ? 300 : 1000);
       };
-      table.textContent = 'stand still, do not touch the screen (about 1 minute)';
+      table.textContent = 'do not touch the screen (about 2 minutes, the chef walks on its own at the end)';
       next();
     });
 
