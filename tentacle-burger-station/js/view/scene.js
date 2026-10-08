@@ -6,7 +6,9 @@
     constructor(game, canvas, overlayRoot) {
       const cfg = game.cfg;
       this.game = game; this.canvas = canvas;
-      this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+      // smooth edges (antialias) cost weak phones a lot: the speed check can try without them (address ending ?perf&noaa)
+      const aa = !/[?&]noaa\b/.test(location.search);
+      this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: aa, powerPreference: 'high-performance' });
       this.renderer.setClearColor(cfg.COLORS.space, 1);
       this.renderer.shadowMap.enabled = !!cfg.SHADOWS;
       this.renderer.shadowMap.type = THREE.PCFShadowMap;

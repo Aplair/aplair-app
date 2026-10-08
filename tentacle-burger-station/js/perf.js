@@ -121,7 +121,7 @@
         'calls ' + info.calls + ' tris ' + info.triangles + ' | ' + c.width + 'x' + c.height + ' px (x' + view.renderer.getPixelRatio() + ', screen x' + (window.devicePixelRatio || 1) + ')<br>' +
         'uploads ' + (up.n / n).toFixed(0) + ' (' + (up.kb / n).toFixed(0) + ' KB) pictures ' + (up.tex / n).toFixed(1) + ' per frame<br>' +
         'by part: ' + Object.keys(calls).sort((x, y) => calls[y] - calls[x]).map((k) => k + ' ' + Math.round(calls[k] / n)).join(', ') + '<br>' +
-        'GPU: ' + String(gpu).replace(/</g, '&lt;');
+        'GPU: ' + String(gpu).replace(/</g, '&lt;') + ' | smooth edges ' + (gl.getContextAttributes().antialias ? 'ON' : 'OFF');
       for (const k in calls) calls[k] = 0;
       hook();
       for (const k in T) T[k] = 0;
