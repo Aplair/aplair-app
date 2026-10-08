@@ -34,6 +34,16 @@
     '}'
   ].join('\n');
 
+  // a circle leaves the floor: free its shapes, colours and pictures in the graphics chip too
+  // (removing it from the scene alone left them there: ~20 shapes per minute of play piled up)
+  function drop(scene, obj) {
+    scene.remove(obj);
+    obj.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) [].concat(o.material).forEach((m) => { if (m === B.mat.vc) return; if (m.map) m.map.dispose(); m.dispose(); });
+    });
+  }
+
   function circleMesh(r, color, style) {
     const mat = new THREE.ShaderMaterial({
       uniforms: { uColor: { value: new THREE.Color(color) }, uFill: { value: 0 }, uAlpha: { value: 1 }, uTime: { value: 0 }, uStyle: { value: style } },
@@ -110,7 +120,7 @@
         this.zoneMeshes.set(z.id, m);
         if (z.type !== 'return' && z.type !== 'cashier') this.view.fx.popIn(m, 1, true);
       }
-      for (const [id, m] of this.zoneMeshes) if (!seen.has(id)) { if (m) this.scene.remove(m); this.zoneMeshes.delete(id); }
+      for (const [id, m] of this.zoneMeshes) if (!seen.has(id)) { if (m) drop(this.scene, m); this.zoneMeshes.delete(id); }
     }
 
     returnPad(z) {
@@ -170,7 +180,7 @@
     // the floor offer: a ring that turns and empties as time runs out, with the picture bobbing over it
     updateOffer(dt) {
       const f = this.game.floorOffer;
-      if (this.offer && (!f || this.offer.id !== f.id)) { this.scene.remove(this.offer.g); this.offer = null; }
+      if (this.offer && (!f || this.offer.id !== f.id)) { drop(this.scene, this.offer.g); this.offer = null; }
       if (!f) return;
       if (!this.offer) {
         const g = new THREE.Group(), ring = circleMesh(f.r, 0x2fe0c8, 3), icon = this.offerIcon(f.type);
@@ -197,7 +207,7 @@
       if (e.type === 'offerTaken') this.view.fx.burst(e.data.offer.x, 0.8, e.data.offer.z, 0x2fe0c8, 26);
       if (e.type === 'purchase') {
         const pm = this.priceMeshes.get(e.data.trackId);
-        if (pm) { this.scene.remove(pm.mesh); pm.tex.dispose(); this.priceMeshes.delete(e.data.trackId); }
+        if (pm) { drop(this.scene, pm.mesh); pm.tex.dispose(); this.priceMeshes.delete(e.data.trackId); }
         this.view.fx.burst(e.data.x, 0.4, e.data.z, 0xffd23a, 26);
       }
     }
@@ -239,14 +249,14 @@
         m.material.uniforms.uTime.value = this.time;
         m.material.uniforms.uFill.value = p.dwellId === z.id ? U.clamp(p.dwell / Math.max(cfg.CLEAN_DWELL, 0.01), 0, 1) : 0;
       }
-      for (const [id, m] of this.cleanRings) if (!seenT.has(id)) { this.scene.remove(m); m.material.dispose(); this.cleanRings.delete(id); }
+      for (const [id, m] of this.cleanRings) if (!seenT.has(id)) { drop(this.scene, m); this.cleanRings.delete(id); }
       // build circles follow the visible offers (price + icon + word painted on the floor)
       const seen = new Set();
       for (const o of g.offers) {
         seen.add(o.trackId);
         let pm = this.priceMeshes.get(o.trackId);
         if (!pm || pm.step !== o.step) {
-          if (pm) { this.scene.remove(pm.mesh); pm.tex.dispose(); }
+          if (pm) { drop(this.scene, pm.mesh); pm.tex.dispose(); }
           pm = this.buildCircle(o);
           this.priceMeshes.set(o.trackId, pm);
         }
@@ -256,7 +266,7 @@
         const s = afford ? 1 + Math.sin(this.time * 5) * 0.035 : 1;
         if (!pm.popping) pm.mesh.scale.set(s, 1, s);
       }
-      for (const [id, pm] of this.priceMeshes) if (!seen.has(id)) { this.scene.remove(pm.mesh); pm.tex.dispose(); this.priceMeshes.delete(id); }
+      for (const [id, pm] of this.priceMeshes) if (!seen.has(id)) { drop(this.scene, pm.mesh); pm.tex.dispose(); this.priceMeshes.delete(id); }
       this.updateOffer(dt);
       // guide arrow
       const t = TBS.Guide.target(g);
