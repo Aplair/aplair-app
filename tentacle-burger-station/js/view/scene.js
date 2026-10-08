@@ -51,6 +51,7 @@
       this.items.update(dt);
       this.circles.update(dt);
       this.fx.update(dt);
+      this.chars.syncRigs();
       this.cam.update(dt);
       this.occl.update(dt);
       const t = this.cam.target, sx = Math.round(t.x * 4) / 4, sz = Math.round(t.z * 4) / 4;

@@ -103,6 +103,24 @@
     rig.tray.visible = rig.carry > 0.5;
   }
 
+  // Workers and cashiers of one look share ONE draw call per body part (body, legs, arms, tray) instead of 6 calls
+  // each: weak phones pay per draw call. Their rigs are not in the scene; they only hold the pose.
+  class RigBatch {
+    constructor(scene, template, cap) {
+      const mk = (geo) => { const m = new THREE.InstancedMesh(geo, B.mat.vc, cap); m.count = 0; m.frustumCulled = false; scene.add(m); return m; };
+      this.parts = { body: mk(template.body.geometry), leg: mk(template.legL.geometry), arm: mk(template.armL.geometry), tray: mk(template.tray.geometry) };
+      this.n = {};
+    }
+    begin() { for (const k in this.parts) this.n[k] = 0; }
+    put(k, mesh) { const m = this.parts[k]; if (this.n[k] < m.instanceMatrix.count) m.setMatrixAt(this.n[k]++, mesh.matrixWorld); }
+    add(rig) {
+      rig.group.updateMatrixWorld(true);
+      this.put('body', rig.body); this.put('leg', rig.legL); this.put('leg', rig.legR); this.put('arm', rig.armL); this.put('arm', rig.armR);
+      if (rig.tray.visible) this.put('tray', rig.tray);
+    }
+    end() { for (const k in this.parts) { const m = this.parts[k]; m.count = this.n[k]; m.instanceMatrix.needsUpdate = true; } }
+  }
+
   class Characters {
     constructor(view) {
       this.view = view; this.game = view.game; this.scene = view.scene;
@@ -115,6 +133,7 @@
       this.board.visible = false;
       this.scene.add(this.board);
       this.workers = new Map();
+      this.batches = {}; // look (suit colour) -> RigBatch
       const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
       this.alien = {
         p: new THREE.InstancedMesh(Ch.purpleAlienGeometry(), mat, 72),
@@ -130,6 +149,21 @@
     }
 
     stackBase(who) { return who === 'chef' ? 1.74 : 1.6; }
+
+    batchedRig(suit, hat) {
+      const r = B.withDetail(this.game.cfg.CROWD_DETAIL, () => makeRig(suit, hat));
+      r.look = suit;
+      if (!this.batches[suit]) this.batches[suit] = new RigBatch(this.scene, r, 40);
+      return r;
+    }
+
+    // after every pose / pop-in scale change of the frame: copy the rigs into their shared draw calls
+    syncRigs() {
+      for (const k in this.batches) this.batches[k].begin();
+      for (const r of this.workers.values()) this.batches[r.look].add(r);
+      for (const id in this.cashiers) this.batches[this.cashiers[id].look].add(this.cashiers[id]);
+      for (const k in this.batches) this.batches[k].end();
+    }
 
     onEvent(e) {
       if (e.type === 'happy') this.happy.set(e.data.c.id, 0);
@@ -154,10 +188,8 @@
         seen.add(w.id);
         let r = this.workers.get(w.id);
         if (!r) {
-          r = B.withDetail(cfg.CROWD_DETAIL, () => makeRig(w.temp > 0 ? cfg.COLORS.tempWorker : cfg.COLORS.worker, 0xf2c230));
-          r.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+          r = this.batchedRig(w.temp > 0 ? cfg.COLORS.tempWorker : cfg.COLORS.worker, 0xf2c230);
           r.group.scale.setScalar(0.92);
-          this.scene.add(r.group);
           this.workers.set(w.id, r);
           this.view.fx.popIn(r.group, 0.92);
         }
@@ -173,12 +205,10 @@
         if (!ct.hasCashier) continue;
         let r = this.cashiers[ct.id];
         if (!r) {
-          r = B.withDetail(cfg.CROWD_DETAIL, () => makeRig(cfg.COLORS.cashier, 0xffffff));
-          r.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+          r = this.batchedRig(cfg.COLORS.cashier, 0xffffff);
           r.group.position.set(ct.cashier.x, 0, ct.cashier.z);
           const cx = (ct.rect.x0 + ct.rect.x1) / 2, cz = (ct.rect.z0 + ct.rect.z1) / 2;
           r.group.rotation.y = Math.abs(cx - ct.cashier.x) > Math.abs(cz - ct.cashier.z) ? Math.atan2(cx - ct.cashier.x, 0) : Math.atan2(0, cz - ct.cashier.z); // faces the counter
-          this.scene.add(r.group);
           this.view.fx.popIn(r.group, 1);
           this.cashiers[ct.id] = r;
         }

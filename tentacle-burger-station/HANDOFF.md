@@ -283,3 +283,5 @@ The owner's revision list (A–N) is being done in 4 parts. After each part: sel
 - perf.js: "Shadow freeze" stops redrawing the shadow map (shadows stay visible) to split shadow cost into drawing vs showing.
 - Phone after fix 2: 76k triangles. Shadow freeze = same 9 FPS as live, so the cost is SHOWING shadows (per-pixel), not drawing the shadow map. Shadows off: 20 FPS.
 - Fix 3: SHADOWS false (owner: fine to remove shadows). Next suspect at 20 FPS: draw calls / CPU on the phone (draw ~27 ms for ~126 calls) or transparent floor circles; test Sharp 0.5 late game to tell GPU fill from CPU.
+- Phone without shadows: Sharp 0.5 gave the same FPS (22 vs 21), so it is NOT pixel work. Cost grows with draw calls (~0.2 ms each on Adreno 506 + Chrome).
+- Fix 4: workers and cashiers are drawn in batches (RigBatch in characters.js): one draw call per body part per look instead of 6 per person. Rigs are kept outside the scene only for their pose; View.update calls chars.syncRigs() after fx (pop-in scale). Chef stays a normal rig.
