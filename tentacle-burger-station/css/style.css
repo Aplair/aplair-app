@@ -64,7 +64,7 @@ html, body {
 .bubble .mad svg, .angry svg { width: calc(var(--u) * 1.4); height: calc(var(--u) * 1.4); display: block; }
 .bubble .mad { margin-right: 2px; animation: shake 0.4s infinite; }
 .angry { animation: shake 0.3s infinite; }
-@keyframes shake { 0%, 100% { margin-left: 0; } 50% { margin-left: 3px; } }
+@keyframes shake { 0%, 100% { translate: 0 0; } 50% { translate: 3px 0; } } /* translate, not margin: margin made the phone redo the page layout every frame */
 .bubble .n { position: relative; z-index: 1; }
 .doorlabel { display: flex; align-items: center; gap: 6px; font-weight: 900; font-size: var(--u); color: #a9d0ff; background: rgba(10, 14, 30, 0.88); border: 2px solid #3b8cff; border-radius: 10px; padding: 4px 10px; }
 .lock { width: 0.8em; height: 0.7em; background: #a9d0ff; border-radius: 2px; position: relative; display: inline-block; margin-top: 0.25em; }
@@ -86,7 +86,8 @@ html, body {
 #banner .b-title { font-size: clamp(28px, min(8vh, 11vw), 72px); font-weight: 900; color: #fff; text-shadow: 0 4px 0 #6a2aa8, 0 0 18px rgba(155, 77, 222, 0.8); }
 #banner .b-sub { font-size: clamp(18px, min(4vh, 6vw), 36px); font-weight: 900; color: #7dff9a; text-shadow: 0 3px 0 #145a26; }
 #hint { position: absolute; left: 50%; bottom: var(--edge-b); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: rgba(15, 20, 52, 0.7); border-radius: 14px; padding: 8px 12px; transition: opacity 0.6s; }
-#hint.gone { opacity: 0; }
+#hint.gone { opacity: 0; visibility: hidden; transition: opacity 0.6s, visibility 0s 0.6s; }
+#hint.gone * { animation: none; } /* the hidden hint's moving dot no longer runs every frame */
 #hint .keys { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 #hint .row { display: flex; gap: 3px; }
 #hint .k { width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.5); border-radius: 6px; background: #fff; color: #222; font-weight: 900; font-size: calc(var(--u) * 0.8); display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 0 #9aa6b8; }

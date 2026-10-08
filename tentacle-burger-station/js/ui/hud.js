@@ -427,7 +427,7 @@
         this.el.xp.style.width = '100%';
         this.xpAnim = 0.35;
       } else if (this.xpAnim > 0) { this.xpAnim -= dt; if (this.xpAnim <= 0) { this.el.xp.style.transition = 'none'; this.el.xp.style.width = '0%'; void this.el.xp.offsetWidth; this.el.xp.style.transition = ''; } }
-      else this.el.xp.style.width = (frac * 100).toFixed(1) + '%';
+      else { const wv = (frac * 100).toFixed(1) + '%'; if (wv !== this.xpW) { this.el.xp.style.width = wv; this.xpW = wv; } } // only when it changed: each write redoes the page layout
       // active boosts
       let bh = '';
       if (g.boosts.speed > 0) bh += '<span class="chip speed">' + U.fmtTime(g.boosts.speed) + '</span>';

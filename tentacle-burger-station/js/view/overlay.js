@@ -45,7 +45,12 @@
         const tf = 'translate(' + p.x.toFixed(0) + 'px,' + p.y.toFixed(0) + 'px) translate(-50%,-50%)';
         if (tf !== e.tf) { e.d.style.transform = tf; e.tf = tf; }
       }
-      if (Math.abs(op - e.op) > 0.01) { e.d.style.opacity = op.toFixed(2); e.op = op; }
+      if (Math.abs(op - e.op) > 0.01) {
+        e.d.style.opacity = op.toFixed(2);
+        const vis = op > 0.01; // hidden labels stop costing the phone a layer
+        if (vis !== e.vis) { e.d.style.visibility = vis ? '' : 'hidden'; e.vis = vis; }
+        e.op = op;
+      }
     }
 
     setHtml(e, html) { if (e.html !== html) { e.d.innerHTML = html; e.html = html; } }
