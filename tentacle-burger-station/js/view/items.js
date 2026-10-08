@@ -4,6 +4,8 @@
   'use strict';
 
   const B = TBS.B, U = TBS.U;
+  // base64 text -> typed array (each file keeps its own copy: a stale cached file elsewhere can't break it)
+  const b64 = (str, Type) => { const bin = atob(str), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Type(u8.buffer); };
   const STEP = { tentacle: 0.15, burger: 0.27, goo: 0.25, dish: 0.2, bill: 0.05, bundle: 0.15, plate: 0.07 };
   const NOTE_A = 0x3fae55, NOTE_B = 0x4cc463; // the two side shades of stacked money notes (layer lines)
 
@@ -67,7 +69,6 @@
   function tentacleLooks(cfg) {
     const M = TBS.Models && TBS.Models.tentacleItem, A = cfg.PAD_MODEL;
     if (!M || !A || !A.on) return null;
-    const b64 = TBS.Characters.b64;
     return M.levels.map((L) => {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(b64(L.pos, Float32Array), 3));

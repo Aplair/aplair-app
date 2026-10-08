@@ -4,6 +4,8 @@
   'use strict';
 
   const B = TBS.B, U = TBS.U;
+  // base64 text -> typed array (each file keeps its own copy: a stale cached file elsewhere can't break it)
+  const b64 = (str, Type) => { const bin = atob(str), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Type(u8.buffer); };
   const C = () => TBS.CONFIG.COLORS;
   const LEVEL_ACCENT = [0xff7a2a, 0xffc02a, 0x2fe0c8, 0xff5ab4, 0xffffff]; // machine top colour per upgrade level
   const TABLE_TOP = [0xf3f5f8, 0xfff3d6, 0xd8f5ff, 0xffe3f1, 0xfff1a8];     // table top per tables upgrade level
@@ -242,7 +244,7 @@
     // the owner's 3D Tentacle Machine instead of the built shapes: one skinned model per pad level (only the current one is
     // drawn: one draw call). Its legs swing a little (bones turned by code: the tool's files had a skeleton but no motion).
     usePadModel(pcx, pcz) {
-      const A = this.cfg.PAD_MODEL, M = TBS.Models.tentacleMachine, b64 = TBS.Characters.b64;
+      const A = this.cfg.PAD_MODEL, M = TBS.Models.tentacleMachine;
       const grp = new THREE.Group(); // pops in when built (scale 0 -> 1)
       grp.position.set(pcx, 0, this.cfg.LAYOUT.W1.pad.z0 + A.back); // back just off the wall (the pipes on its back must not go into it)
       this.scene.add(grp);
