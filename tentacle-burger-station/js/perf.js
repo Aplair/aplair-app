@@ -18,6 +18,13 @@
     M.view.render = function () { if (!drawOff) draw(); };
 
     const gl = view.renderer.getContext();
+    // how much data is sent to the graphics chip each frame (buffers = moving things, pictures = floor circles / labels)
+    const up = { n: 0, kb: 0, tex: 0 };
+    const bsd = gl.bufferSubData.bind(gl);
+    gl.bufferSubData = function (t, off, data, from, len) { up.n++; if (data && data.byteLength) up.kb += (len ? len * data.BYTES_PER_ELEMENT : data.byteLength) / 1024; return bsd.apply(null, arguments); };
+    const bd = gl.bufferData.bind(gl);
+    gl.bufferData = function (t, data) { up.n++; if (data && data.byteLength) up.kb += data.byteLength / 1024; return bd.apply(null, arguments); };
+    for (const name of ['texImage2D', 'texSubImage2D']) { const f = gl[name].bind(gl); gl[name] = function () { up.tex++; return f.apply(null, arguments); }; }
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     const gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
 
@@ -71,6 +78,11 @@
       sm.autoUpdate = !sm.autoUpdate; sm.needsUpdate = true;
       b.textContent = sm.autoUpdate ? 'Shadow freeze' : 'Shadow live';
     });
+    // stop sending moved positions to the graphics chip (people and money freeze in place): tells if those uploads are what slows the phone
+    let uploadsOff = false;
+    const flush = TBS.B.flushInstances;
+    TBS.B.flushInstances = function (mesh, n) { if (uploadsOff) { mesh.count = Math.min(n, mesh.userData.perfShown || 0); return; } mesh.userData.perfShown = n; flush(mesh, n); };
+    button('Uploads off', (b) => { uploadsOff = !uploadsOff; b.textContent = uploadsOff ? 'Uploads on' : 'Uploads off'; });
     button('HUD off', (b) => {
       const hide = b.textContent === 'HUD off';
       for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = hide ? 'none' : '';
@@ -107,11 +119,13 @@
         'FPS ' + (frames / secs).toFixed(0) + ' | frame ' + (1000 * secs / n).toFixed(0) + 'ms, worst ' + worst.toFixed(0) + 'ms<br>' +
         'code ' + js.toFixed(1) + 'ms = game ' + ms('game') + ' view ' + ms('view') + ' draw ' + ms('draw') + ' hud ' + ms('hud') + '<br>' +
         'calls ' + info.calls + ' tris ' + info.triangles + ' | ' + c.width + 'x' + c.height + ' px (x' + view.renderer.getPixelRatio() + ', screen x' + (window.devicePixelRatio || 1) + ')<br>' +
+        'uploads ' + (up.n / n).toFixed(0) + ' (' + (up.kb / n).toFixed(0) + ' KB) pictures ' + (up.tex / n).toFixed(1) + ' per frame<br>' +
         'by part: ' + Object.keys(calls).sort((x, y) => calls[y] - calls[x]).map((k) => k + ' ' + Math.round(calls[k] / n)).join(', ') + '<br>' +
         'GPU: ' + String(gpu).replace(/</g, '&lt;');
       for (const k in calls) calls[k] = 0;
       hook();
       for (const k in T) T[k] = 0;
+      up.n = 0; up.kb = 0; up.tex = 0;
       frames = 0; worst = 0; last = now;
     }, 1000);
   }
