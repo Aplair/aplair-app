@@ -315,6 +315,7 @@
     CAM_LOOKAHEAD: 0.3,              // camera looks a little ahead of where you walk
     CAM_STACK_LIFT: 0.25,            // camera rises with tall stacks so they stay on screen
     MAX_PIXEL_RATIO: 1.5,            // render sharpness cap (lower = faster on weak laptops)
+    ANTIALIAS: 'auto',               // smooth edges. 'auto' = off on phones/tablets (Adreno 506: 26 -> 33 FPS late game; their sharp screens hide the steps), on for mouse computers. true / false forces it
     SHADOWS: false,                  // real-time shadows. Off: on weak phones (Adreno 506) showing them halved the speed (9 -> 20 FPS late game). Owner OK with no shadows
     SHADOW_MAP_SIZE: 1024,           // shadow detail
     ALIEN_MODELS: true,              // use the AI-made 3D alien models from js/models (false = the old built-in shapes)

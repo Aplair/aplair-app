@@ -6,8 +6,9 @@
     constructor(game, canvas, overlayRoot) {
       const cfg = game.cfg;
       this.game = game; this.canvas = canvas;
-      // smooth edges (antialias) cost weak phones a lot: the speed check can try without them (address ending ?perf&noaa)
-      const aa = !/[?&]noaa\b/.test(location.search);
+      // smooth edges (antialias) cost weak phones a lot (see CONFIG.ANTIALIAS). The speed check can force them: ?perf&noaa / ?perf&aa
+      const q = location.search, phone = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+      const aa = /[?&]noaa\b/.test(q) ? false : /[?&]aa\b/.test(q) ? true : cfg.ANTIALIAS === 'auto' ? !phone : !!cfg.ANTIALIAS;
       this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: aa, powerPreference: 'high-performance' });
       this.renderer.setClearColor(cfg.COLORS.space, 1);
       this.renderer.shadowMap.enabled = !!cfg.SHADOWS;

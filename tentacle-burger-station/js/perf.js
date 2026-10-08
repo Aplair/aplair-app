@@ -84,9 +84,9 @@
     TBS.B.flushInstances = function (mesh, n) { if (uploadsOff) { mesh.count = Math.min(n, mesh.userData.perfShown || 0); return; } mesh.userData.perfShown = n; flush(mesh, n); };
     button('Uploads off', (b) => { uploadsOff = !uploadsOff; b.textContent = uploadsOff ? 'Uploads on' : 'Uploads off'; });
     // smooth edges can only change when the game starts: this button restarts the page with them off (or back on)
-    const noaa = /[?&]noaa\b/.test(location.search);
-    button(noaa ? 'Edges on (restart)' : 'Edges off (restart)', () => {
-      location.search = noaa ? location.search.replace(/[?&]noaa\b/, '') : location.search + '&noaa';
+    const aaOn = gl.getContextAttributes().antialias;
+    button(aaOn ? 'Edges off (restart)' : 'Edges on (restart)', () => {
+      location.search = location.search.replace(/[?&]n?oaa\b|[?&]aa\b/g, '') + (aaOn ? '&noaa' : '&aa');
     });
     button('HUD off', (b) => {
       const hide = b.textContent === 'HUD off';
