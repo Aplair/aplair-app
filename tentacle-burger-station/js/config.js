@@ -315,7 +315,7 @@
     CAM_LOOKAHEAD: 0.3,              // camera looks a little ahead of where you walk
     CAM_STACK_LIFT: 0.25,            // camera rises with tall stacks so they stay on screen
     MAX_PIXEL_RATIO: 1.5,            // render sharpness cap (lower = faster on weak laptops)
-    SHADOWS: true,                   // soft shadows under things
+    SHADOWS: false,                  // real-time shadows. Off: on weak phones (Adreno 506) showing them halved the speed (9 -> 20 FPS late game). Owner OK with no shadows
     SHADOW_MAP_SIZE: 1024,           // shadow detail
     CROWD_DETAIL: 0.55,              // smoothness of round shapes on aliens, food and money (1 = full). Lower = far fewer triangles for phones
     OCCLUDER_FADE: 0.28,             // see-through amount for things in front of the chef (0 = invisible)

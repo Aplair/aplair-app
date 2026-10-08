@@ -41,7 +41,7 @@
     button('Draw off', (b) => { drawOff = !drawOff; b.textContent = drawOff ? 'Draw on' : 'Draw off'; });
     button('Sharp 1', () => setRatio(1));
     button('Sharp 0.5', () => setRatio(0.5));
-    button('Shadows off', (b) => {
+    button(view.renderer.shadowMap.enabled ? 'Shadows off' : 'Shadows on', (b) => {
       const on = !view.renderer.shadowMap.enabled;
       view.renderer.shadowMap.enabled = on; view.sun.castShadow = on;
       view.scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
