@@ -42,28 +42,30 @@
      spec = { kind, ... } built by the overlay. */
   const KINDS = {
     lv: { // level of a machine / table: white pill, gold when MAX, star when HOT
-      font: (u) => '900 ' + (u * 0.78) + 'px ' + FONT, pad: [1, 6], bw: 2, r: 8,
+      fw: '900', fs: (u) => (u * 0.78), pad: [1, 6], bw: 2, r: 8,
       look(s) { return s.bump ? ['#6fff9a', '#9b4dde', '#1e2340'] : s.hot ? [null, '#c45cff', '#5a2a00'] : s.max ? ['#ffd23a', '#b8860b', '#4a3200'] : ['rgba(255,255,255,0.92)', '#9b4dde', '#1e2340']; },
       icon: (s, u) => s.hot ? u * 0.78 * 0.95 : 0, gap: 2,
       drawIcon(c, s, x, y, sz) { star(c, x, y, sz, '#ffc21a'); },
       bg(c, s, l, t, w, h) { if (!s.hot || s.bump) return false; const g = c.createLinearGradient(0, t, 0, t + h); g.addColorStop(0, '#fff3b0'); g.addColorStop(1, '#ffd23a'); rrect(c, l + 2, t + 2, w - 4, h - 4, 6); c.fillStyle = g; c.fill(); return true; }
     },
-    term: { font: (u) => '900 ' + (u * 0.85) + 'px ' + FONT, pad: [2, 8], bw: 0, r: 8, look: (s) => s.desk === 'chef' ? ['#ff7a2a', null, '#fff'] : s.desk === 'hire' ? ['#3a7be0', null, '#fff'] : ['#2fe0c8', null, '#0b3a35'] },
-    timer: { font: (u) => '800 ' + (u * 0.75) + 'px ' + FONT, pad: [1, 7], bw: 0, r: 8, look: () => ['rgba(47,208,184,0.9)', null, '#fff'] },
-    door: { font: (u) => '900 ' + u + 'px ' + FONT, pad: [4, 10], bw: 2, r: 10, look: () => ['rgba(10,14,30,0.88)', '#3b8cff', '#a9d0ff'],
+    term: { fw: '900', fs: (u) => (u * 0.85), pad: [2, 8], bw: 0, r: 8, look: (s) => s.desk === 'chef' ? ['#ff7a2a', null, '#fff'] : s.desk === 'hire' ? ['#3a7be0', null, '#fff'] : ['#2fe0c8', null, '#0b3a35'] },
+    timer: { fw: '800', fs: (u) => (u * 0.75), pad: [1, 7], bw: 0, r: 8, look: () => ['rgba(47,208,184,0.9)', null, '#fff'] },
+    door: { fw: '900', fs: (u) => u, pad: [4, 10], bw: 2, r: 10, look: () => ['rgba(10,14,30,0.88)', '#3b8cff', '#a9d0ff'],
       icon: (s, u) => u * 0.8, gap: 6,
       drawIcon(c, s, x, y, sz) { // padlock
         const w = sz, h = sz * 0.875, top = y + sz * 0.42; c.fillStyle = '#a9d0ff'; rrect(c, x, top, w, h, 2); c.fill();
         c.beginPath(); c.lineWidth = sz * 0.15; c.strokeStyle = '#a9d0ff'; c.arc(x + w / 2, top, sz * 0.25, Math.PI, 0); c.stroke();
       } },
-    offer: { font: (u) => '900 ' + (u * 0.9) + 'px ' + FONT, pad: [1, 9, 1, 5], bw: 2, r: 999, look: () => ['rgba(15,20,52,0.82)', '#2fe0c8', '#fff'],
+    offer: { fw: '900', fs: (u) => (u * 0.9), pad: [1, 9, 1, 5], bw: 2, r: 999, look: () => ['rgba(15,20,52,0.82)', '#2fe0c8', '#fff'],
       icon: (s, u) => u * 0.9 * 1.05, gap: 4, icon2: (s, u) => s.gem ? u * 0.9 * 0.95 : 0,
       drawIcon(c, s, x, y, sz) { c.fillStyle = '#fff'; c.beginPath(); c.arc(x + sz / 2, y + sz / 2, sz / 2, 0, Math.PI * 2); c.fill(); const e = sz / 1.05; c.fillStyle = '#11857a'; c.beginPath(); c.moveTo(x + sz * 0.38, y + sz * 0.27); c.lineTo(x + sz * 0.38 + e * 0.42, y + sz * 0.27 + e * 0.25); c.lineTo(x + sz * 0.38, y + sz * 0.27 + e * 0.5); c.closePath(); c.fill(); },
       drawIcon2(c, s, x, y, sz) { gem(c, x, y, sz); } },
-    bubble: { font: (u) => '900 ' + u + 'px ' + FONT, pad: [3, 9, 3, 5], bw: 3, r: 14, look: (s) => ['#fff', s.chain === 'g' ? '#3b8cff' : '#9b4dde', '#222'], bubble: true },
+    bubble: { fw: '900', fs: (u) => u, pad: [3, 9, 3, 5], bw: 3, r: 14, look: (s) => ['#fff', s.chain === 'g' ? '#3b8cff' : '#9b4dde', '#222'], bubble: true },
     angry: { angry: true },
-    float: { font: (u, s) => '900 ' + (u * (s.big ? 1.7 : 1.3)) + 'px ' + FONT, float: true }
+    float: { fw: '900', fs: (u, s) => (u * (s.big ? 1.7 : 1.3)), float: true }
   };
+
+  const fontOf = (K, fs) => K.fw + ' ' + fs.toFixed(2) + 'px ' + FONT;
 
   class LabelLayer {
     constructor(view) {
@@ -113,8 +115,9 @@
     layout(l) {
       const s = l.spec, K = KINDS[s.kind], u = unit(), c = this.ctx;
       if (K.angry) { const sz = u * 1.4; return { bw: sz, bh: sz, m: [2, 2, 2, 2] }; }
-      c.font = K.font(u, s);
-      const tw = s.text ? c.measureText(s.text).width : 0, fs = parseFloat(c.font.split(' ')[1]);
+      const fs = K.fs(u, s); // the size is computed, never read back from c.font (phones write it differently)
+      c.font = fontOf(K, fs);
+      const tw = s.text ? c.measureText(s.text).width : 0;
       if (K.float) return { tw: tw, fs: fs, bw: tw, bh: Math.round(fs * 1.25), m: [8, 8, 10, 8] };
       const pad = K.pad.length === 2 ? [K.pad[0], K.pad[1], K.pad[0], K.pad[1]] : K.pad;
       let items = [];
@@ -141,7 +144,7 @@
       this.canvas.width = W; this.canvas.height = H; // also clears it
       c.setTransform(S, 0, 0, S, 0, 0); c.translate(m[3], m[0]);
       if (K.angry) { if (ICONS.angry.complete) c.drawImage(ICONS.angry, 0, 0, L.bw, L.bh); return [W, H]; }
-      c.font = K.font(unit(), s); c.textBaseline = 'middle';
+      c.font = fontOf(K, L.fs); c.textBaseline = 'middle';
       if (K.float) {
         const main = s.gem ? '#8fdcff' : '#7dff9a', sh = s.gem ? '#134a7a' : '#145a26', y = L.bh / 2;
         c.shadowColor = 'rgba(0,0,0,0.4)'; c.shadowBlur = 6 * S; c.fillStyle = sh; c.fillText(s.text, 0, y + 2);
@@ -189,7 +192,9 @@
     ensure(l) {
       const S = this.view.renderer.getPixelRatio(), key = JSON.stringify(l.spec) + '|' + S + '|' + unit();
       if (key === l.key) return true;
-      const L = this.layout(l), wh = this.paint(l, L, S);
+      const L = this.layout(l);
+      if (!(isFinite(L.bw) && isFinite(L.bh) && L.bw > 0 && L.bh > 0)) return true; // never break the game over one label: skip it
+      const wh = this.paint(l, L, S);
       if (!l.spot || l.spot.w < wh[0] || l.spot.h < wh[1]) {
         if (l.spot) this.release(l);
         l.spot = this.alloc(wh[0], wh[1]);
@@ -207,6 +212,7 @@
     add(l, x, y, alpha, scale) {
       if (this.hidden || alpha <= 0.01 || this.n >= this.max) return;
       if (!this.ensure(l)) { this.repack(); if (!this.ensure(l)) return; }
+      if (!l.spot || !l.L) return;
       const L = l.L, S = l.S, sc = scale || 1, m = L.m, i = this.n++;
       const w = l.pw / S * sc, h = l.ph / S * sc;
       let left = x - (m[3] + L.bw / 2) * sc, top = y - (m[0] + L.bh / 2) * sc;

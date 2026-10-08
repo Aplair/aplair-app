@@ -63,7 +63,10 @@
       this.overlay.update(dt);
     }
 
-    render() { this.renderer.render(this.scene, this.camera); this.overlay.labels.render(this.renderer); } // labels last, on top
+    render() { // labels last, on top. The draw counters cover both passes (the speed check reads them)
+      const info = this.renderer.info; info.autoReset = false; info.reset();
+      this.renderer.render(this.scene, this.camera); this.overlay.labels.render(this.renderer);
+    }
   }
 
   TBS.View = View;
