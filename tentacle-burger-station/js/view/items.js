@@ -7,7 +7,7 @@
   const STEP = { tentacle: 0.15, burger: 0.27, goo: 0.25, dish: 0.2, bill: 0.05, bundle: 0.15, plate: 0.07 };
 
   function geometries() {
-    const col = TBS.CONFIG.COLORS;
+    const cfg = TBS.CONFIG, col = cfg.COLORS;
     return {
       tentacle: B.merge([
         { g: B.cyl(0.05, 0.12, 0.56, 10), c: col.purple, p: [0, 0.08, 0], r: [0, 0, Math.PI / 2] },
@@ -44,6 +44,11 @@
       // flat notes for money piles: two side shades (layer lines like a real stack) and a printed top note
       noteA: B.merge([{ g: B.box(0.5, 0.045, 0.28), c: 0x3fae55, p: [0, 0.0225, 0] }]),
       noteB: B.merge([{ g: B.box(0.5, 0.045, 0.28), c: 0x4cc463, p: [0, 0.0225, 0] }]),
+      // a whole covered layer of a pile as ONE box (looks the same as its notes side by side, far less to draw)
+      slabA: B.merge([{ g: B.box(0.5 * cfg.MONEY_BLOCK_COLS, 0.045, 0.28 * cfg.MONEY_BLOCK_ROWS), c: 0x3fae55, p: [0, 0.0225, 0] }]),
+      slabB: B.merge([{ g: B.box(0.5 * cfg.MONEY_BLOCK_COLS, 0.045, 0.28 * cfg.MONEY_BLOCK_ROWS), c: 0x4cc463, p: [0, 0.0225, 0] }]),
+      tslabA: B.merge([{ g: B.box(0.5 * cfg.TIP_BLOCK_COLS, 0.045, 0.28 * cfg.TIP_BLOCK_ROWS), c: 0x3fae55, p: [0, 0.0225, 0] }]),
+      tslabB: B.merge([{ g: B.box(0.5 * cfg.TIP_BLOCK_COLS, 0.045, 0.28 * cfg.TIP_BLOCK_ROWS), c: 0x4cc463, p: [0, 0.0225, 0] }]),
       noteTop: B.merge([
         { g: B.box(0.5, 0.045, 0.28), c: 0x4cc463, p: [0, 0.0225, 0] },
         { g: B.box(0.44, 0.004, 0.22), c: 0x9ff0ae, p: [0, 0.047, 0] },
@@ -64,7 +69,7 @@
     constructor(view) {
       this.view = view; this.game = view.game; this.cfg = view.game.cfg; this.scene = view.scene;
       const geos = TBS.B.withDetail(this.cfg.CROWD_DETAIL, geometries), mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-      const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, noteA: 3000, noteB: 3000, noteTop: 900 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
+      const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, noteA: 3000, noteB: 3000, noteTop: 900, slabA: 120, slabB: 120, tslabA: 400, tslabB: 400 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
       this.meshes = {};
       this.n = {};
       for (const k in geos) {
@@ -198,7 +203,9 @@
       const n = this.notesFor(amount, tip);
       if (n <= 0) return;
       const layers = Math.ceil(n / per), lastFull = n % per === 0;
-      for (let i = 0; i < n; i++) {
+      const covered = layers - (lastFull ? 1 : 2); // layers fully hidden under others: one box each
+      for (let layer = 0; layer < covered; layer++) this.put((tip ? 'tslab' : 'slab') + (layer % 2 ? 'B' : 'A'), x, layer * th, z, 0);
+      for (let i = Math.max(0, covered) * per; i < n; i++) {
         const layer = Math.floor(i / per), j = i % per, c = j % cols, r = Math.floor(j / cols);
         const top = layer === layers - 1 || (layer === layers - 2 && !lastFull && j >= n % per); // notes you can see from above
         const type = top ? 'noteTop' : (layer % 2 ? 'noteB' : 'noteA');

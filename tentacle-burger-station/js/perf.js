@@ -65,6 +65,12 @@
       remakeShadows();
       b.textContent = small ? 'Shadow ' + M.game.cfg.SHADOW_MAP_SIZE : 'Shadow 512';
     });
+    // freeze = shadows stay on screen but are not redrawn each frame: tells if the cost is drawing the shadows or showing them
+    button('Shadow freeze', (b) => {
+      const sm = view.renderer.shadowMap;
+      sm.autoUpdate = !sm.autoUpdate; sm.needsUpdate = true;
+      b.textContent = sm.autoUpdate ? 'Shadow freeze' : 'Shadow live';
+    });
     button('HUD off', (b) => {
       const hide = b.textContent === 'HUD off';
       for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = hide ? 'none' : '';

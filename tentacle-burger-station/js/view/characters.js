@@ -154,7 +154,7 @@
         seen.add(w.id);
         let r = this.workers.get(w.id);
         if (!r) {
-          r = makeRig(w.temp > 0 ? cfg.COLORS.tempWorker : cfg.COLORS.worker, 0xf2c230);
+          r = B.withDetail(cfg.CROWD_DETAIL, () => makeRig(w.temp > 0 ? cfg.COLORS.tempWorker : cfg.COLORS.worker, 0xf2c230));
           r.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
           r.group.scale.setScalar(0.92);
           this.scene.add(r.group);
@@ -173,7 +173,7 @@
         if (!ct.hasCashier) continue;
         let r = this.cashiers[ct.id];
         if (!r) {
-          r = makeRig(cfg.COLORS.cashier, 0xffffff);
+          r = B.withDetail(cfg.CROWD_DETAIL, () => makeRig(cfg.COLORS.cashier, 0xffffff));
           r.group.traverse((o) => { if (o.isMesh) o.castShadow = true; });
           r.group.position.set(ct.cashier.x, 0, ct.cashier.z);
           const cx = (ct.rect.x0 + ct.rect.x1) / 2, cz = (ct.rect.z0 + ct.rect.z1) / 2;

@@ -278,3 +278,6 @@ The owner's revision list (A–N) is being done in 4 parts. After each part: sel
 - Phone results: game code is light; the cost is drawing. Late game had ~176k triangles (aliens 2188 / 1560 each, burger 536) and the shadow pass draws them all again. Shadows off alone: 18 FPS late game. Shadow type / map size changed little.
 - Fix 1: CROWD_DETAIL 0.55 builds aliens, food and money with fewer round-shape segments (B.withDetail in builders.js). Purple alien 2188 -> 876, blue 1560 -> 654, burger 536 -> 274. Looks the same at game zoom (checked side by side).
 - Next if still slow: cheaper shadows (fake floor shadows), then view.update time (8-11 ms on the phone).
+- Phone after fix 1: late game 176k -> 113k triangles; shadows on 9 FPS (draw 78 ms), shadows off 20 FPS (draw 28 ms, view 10 ms). Shadows are about half the frame.
+- Fix 2: money piles draw each fully covered layer as ONE box (slabA/B, tslabA/B) instead of 12 or 6 notes; only the visible top notes stay separate. Bot late game (L19): 2267 note instances -> ~340, 80k -> 58k triangles; looks the same. Workers and cashiers also use CROWD_DETAIL (chef stays full detail).
+- perf.js: "Shadow freeze" stops redrawing the shadow map (shadows stay visible) to split shadow cost into drawing vs showing.
