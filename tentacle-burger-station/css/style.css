@@ -8,6 +8,8 @@ html, body {
 }
 #game { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
 #overlay, #hud { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+/* each HUD piece is its own small layer, so the full-screen #hud box itself draws nothing: weak phones otherwise blend a whole-screen sheet over the game every frame */
+.top-left, .top-center, .top-right, #toast, #banner, #hint, #dev-badge { will-change: transform; }
 :root { --u: clamp(13px, min(2.2vh, 3.6vw), 20px); --edge-t: max(8px, env(safe-area-inset-top)); --edge-l: max(10px, env(safe-area-inset-left)); --edge-r: max(10px, env(safe-area-inset-right)); --edge-b: max(8px, env(safe-area-inset-bottom)); }
 
 /* ---------- top HUD ---------- */
