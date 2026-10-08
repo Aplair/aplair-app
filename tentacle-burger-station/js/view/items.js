@@ -63,7 +63,7 @@
 
   const NO_SHIFT = [0, 0, 0];
 
-  // the owner's tentacle (one per pad level): lying down, long side along x, coloured per corner (no picture)
+  // the owner's tentacle (one per pad level): lying down, long side along x, with its own small picture
   function tentacleLooks(cfg) {
     const M = TBS.Models && TBS.Models.tentacleItem, A = cfg.PAD_MODEL;
     if (!M || !A || !A.on) return null;
@@ -72,11 +72,13 @@
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(b64(L.pos, Float32Array), 3));
       g.setAttribute('normal', new THREE.BufferAttribute(b64(L.nrm, Int8Array), 3, true));
-      g.setAttribute('color', new THREE.BufferAttribute(b64(L.col, Uint8Array), 3, true));
+      g.setAttribute('uv', new THREE.BufferAttribute(b64(L.uv, Float32Array), 2));
       g.setIndex(new THREE.BufferAttribute(b64(L.idx, Uint16Array), 1));
       g.scale(A.itemLength, A.itemLength, A.itemLength);
       g.computeBoundingSphere();
-      return g;
+      const tex = new THREE.TextureLoader().load(L.tex);
+      tex.flipY = false; // glTF-style pictures are stored upside down compared to three.js
+      return { geo: g, tex: tex };
     });
   }
 
@@ -86,13 +88,15 @@
       const geos = TBS.B.withDetail(this.cfg.CROWD_DETAIL, geometries), mat = new THREE.MeshLambertMaterial({ vertexColors: true });
       const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, block: 7000, noteTop: 900 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
       this.tentLooks = tentacleLooks(this.cfg);
-      if (this.tentLooks) { geos.tentacle.dispose(); geos.tentacle = this.tentLooks[0]; }
+      if (this.tentLooks) { geos.tentacle.dispose(); geos.tentacle = this.tentLooks[0].geo; }
       this.tentLook = 0;
       this.meshes = {};
       this.n = {};
       for (const k in geos) {
-        // the money block gets its own material: three.js picks 'per-piece colour' mode only when a material is first used
-        const m = new THREE.InstancedMesh(geos[k], k === 'block' ? new THREE.MeshLambertMaterial({ vertexColors: true }) : mat, caps[k]);
+        // the money block gets its own material: three.js picks 'per-piece colour' mode only when a material is first used;
+        // the owner's tentacle too (it has a picture)
+        const own = k === 'block' ? new THREE.MeshLambertMaterial({ vertexColors: true }) : k === 'tentacle' && this.tentLooks ? new THREE.MeshLambertMaterial({ map: this.tentLooks[0].tex }) : null;
+        const m = new THREE.InstancedMesh(geos[k], own || mat, caps[k]);
         m.castShadow = true; m.frustumCulled = false; m.count = 0;
         this.scene.add(m);
         this.meshes[k] = m; this.n[k] = 0;
@@ -412,7 +416,7 @@
       for (const k in this.n) this.n[k] = 0;
       if (this.tentLooks) { // every tentacle takes the look of the current pad level
         const l = g.levelOf('pad'), i = l ? Math.min(l.lv, this.tentLooks.length) - 1 : 0;
-        if (i !== this.tentLook) { this.tentLook = i; this.meshes.tentacle.geometry = this.tentLooks[i]; }
+        if (i !== this.tentLook) { const m = this.meshes.tentacle; this.tentLook = i; m.geometry = this.tentLooks[i].geo; m.material.map = this.tentLooks[i].tex; }
       }
       this.updateStack('player', dt);
       const alive = new Set(['player']);
