@@ -292,29 +292,34 @@
       this.pop.g2 = { obj: this.g2, shown: false, track: 'gmachine2' };
     }
 
-    // a table = legs + stools (fixed colours) + a top and a tablecloth whose look follows the wing's tables upgrade
-    tableMesh(pos, accent, look) {
-      const s = pos.s || 2, r = TBS.TABLE_TOP_R[s] || 0.5, parts = [];
-      parts.push({ g: B.cyl(0.07, 0.1, 0.72, 10), c: 0x8a93a3, p: [0, 0.36, 0] }, { g: B.cyl(0.3, 0.3, 0.04, 14), c: 0x8a93a3, p: [0, 0.02, 0] });
-      for (const d of TBS.seatLayout(s)) {
-        parts.push({ g: B.cyl(0.22, 0.22, 0.08, 14), c: accent, p: [d[0], 0.45, d[1]] }, { g: B.cyl(0.05, 0.05, 0.42, 8), c: 0x8a93a3, p: [d[0], 0.21, d[1]] });
-      }
+    // a table = legs + stools + top + rim (+ a tablecloth from level 1) merged into ONE mesh = one draw call
+    // (weak phones pay per draw call). An upgrade rebuilds that table's mesh in its new colours.
+    tableMesh(pos, accent) {
       const grp = new THREE.Group();
-      grp.add(B.mesh(parts, { own: true }));
-      // every table has its OWN materials: only the table you upgrade changes its look
-      const mats = { top: look.top.clone(), rim: look.rim.clone(), cloth: look.cloth.clone(), level: -1 };
-      const top = new THREE.Mesh(s === 4 ? B.box(r * 2, 0.08, r * 2) : B.cyl(r, r, 0.08, 20), mats.top);
-      top.position.y = 0.76; top.castShadow = true;
-      const rim = new THREE.Mesh(s === 4 ? B.box(r * 2 + 0.06, 0.04, r * 2 + 0.06) : B.cyl(r + 0.03, r + 0.03, 0.04, 20), mats.rim);
-      rim.position.y = 0.71;
-      const cloth = new THREE.Mesh(s === 4 ? B.box(r * 2 + 0.14, 0.2, r * 2 + 0.14) : B.cyl(r + 0.08, r + 0.12, 0.2, 20), mats.cloth);
-      cloth.position.y = 0.66; cloth.visible = false;
-      grp.add(top, rim, cloth);
-      mats.clothMesh = cloth;
-      grp.userData.look = mats;
+      grp.userData.look = { pos: pos, accent: accent, level: -1, mesh: null };
+      this.setTableLevel(grp, 0);
       grp.position.set(pos.x, 0, pos.z);
       grp.visible = false;
       return this.add(grp);
+    }
+
+    setTableLevel(grp, level) {
+      const tl = grp.userData.look, pos = tl.pos, s = pos.s || 2, r = TBS.TABLE_TOP_R[s] || 0.5;
+      if (tl.level === level) return;
+      tl.level = level;
+      const top = TABLE_TOP[Math.min(level, TABLE_TOP.length - 1)], cloth = TABLE_CLOTH[Math.min(level, TABLE_CLOTH.length - 1)];
+      const rim = level >= TABLE_TOP.length - 1 ? 0xffd23a : tl.accent;
+      const parts = [{ g: B.cyl(0.07, 0.1, 0.72, 10), c: 0x8a93a3, p: [0, 0.36, 0] }, { g: B.cyl(0.3, 0.3, 0.04, 14), c: 0x8a93a3, p: [0, 0.02, 0] }];
+      for (const d of TBS.seatLayout(s)) {
+        parts.push({ g: B.cyl(0.22, 0.22, 0.08, 14), c: tl.accent, p: [d[0], 0.45, d[1]] }, { g: B.cyl(0.05, 0.05, 0.42, 8), c: 0x8a93a3, p: [d[0], 0.21, d[1]] });
+      }
+      parts.push({ g: s === 4 ? B.box(r * 2, 0.08, r * 2) : B.cyl(r, r, 0.08, 20), c: top, p: [0, 0.76, 0] });
+      parts.push({ g: s === 4 ? B.box(r * 2 + 0.06, 0.04, r * 2 + 0.06) : B.cyl(r + 0.03, r + 0.03, 0.04, 20), c: rim, p: [0, 0.71, 0] });
+      if (level >= 1) parts.push({ g: s === 4 ? B.box(r * 2 + 0.14, 0.2, r * 2 + 0.14) : B.cyl(r + 0.08, r + 0.12, 0.2, 20), c: cloth, p: [0, 0.66, 0] });
+      const mesh = B.mesh(parts);
+      if (tl.mesh) { grp.remove(tl.mesh); tl.mesh.geometry.dispose(); }
+      tl.mesh = mesh;
+      grp.add(mesh);
     }
 
     // upgrade looks for one wing: tables (top / tablecloth) and counter (top colour + lamps)
@@ -367,7 +372,7 @@
       this.pop.ctr1 = { obj: counter(W1, col.purple, undefined, this.looks.p), shown: false, track: 'b_ctr1' };
       this.counter2 = counter(W2, col.blue, this.w2mat(), this.looks.g);
       this.pop.ctr2 = { obj: this.counter2, shown: false, wing2: true, track: 'b_ctr2' };
-      this.tables = { p: W1.tables.map((t) => this.tableMesh(t, col.purple, this.looks.p)), g: W2.tables.map((t) => this.tableMesh(t, col.blue, this.looks.g)) };
+      this.tables = { p: W1.tables.map((t) => this.tableMesh(t, col.purple)), g: W2.tables.map((t) => this.tableMesh(t, col.blue)) };
       this.pop.hire1 = { obj: this.add(this.deskMesh(W1.hireDesk, col.worker, 'helmet'), true), shown: false, track: 'b_hire1' };
       this.pop.chef1 = { obj: this.add(this.deskMesh(W1.chefDesk, col.chef, 'chef'), true), shown: false, track: 'b_chef1' };
       this.hire2 = this.add(this.deskMesh(W2.hireDesk, col.worker, 'helmet'), true);
@@ -479,13 +484,8 @@
         const ct = g.chains[cid].counter, lk = this.looks[cid];
         if (cid === 'g') { const vis = g.wing2Open; lk.ctrTopMesh.visible = vis; lk.lamps.forEach((l) => { l.visible = vis; }); } // dark wing: no lit parts
         for (const tb of ct.tables) { // each table: white top -> coloured top; a tablecloth from level 2; gold rim at max
-          const mesh = this.tables[cid][tb.idx], tl = mesh && mesh.userData.look;
-          if (!tl || tl.level === tb.level) continue;
-          tl.level = tb.level;
-          tl.top.color.setHex(TABLE_TOP[Math.min(tb.level, TABLE_TOP.length - 1)]);
-          tl.cloth.color.setHex(TABLE_CLOTH[Math.min(tb.level, TABLE_CLOTH.length - 1)]);
-          tl.clothMesh.visible = tb.level >= 1;
-          if (tb.level >= TABLE_TOP.length - 1) tl.rim.color.setHex(0xffd23a);
+          const grp = this.tables[cid][tb.idx];
+          if (grp) this.setTableLevel(grp, tb.level);
         }
         if (ct.level !== lk.counterLevel) { // counter: top colour + one lamp per storage level
           lk.counterLevel = ct.level;
