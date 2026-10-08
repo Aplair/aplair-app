@@ -63,11 +63,31 @@
 
   const NO_SHIFT = [0, 0, 0];
 
+  // the owner's tentacle (one per pad level): lying down, long side along x, coloured per corner (no picture)
+  function tentacleLooks(cfg) {
+    const M = TBS.Models && TBS.Models.tentacleItem, A = cfg.PAD_MODEL;
+    if (!M || !A || !A.on) return null;
+    const b64 = TBS.Characters.b64;
+    return M.levels.map((L) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(b64(L.pos, Float32Array), 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(b64(L.nrm, Int8Array), 3, true));
+      g.setAttribute('color', new THREE.BufferAttribute(b64(L.col, Uint8Array), 3, true));
+      g.setIndex(new THREE.BufferAttribute(b64(L.idx, Uint16Array), 1));
+      g.scale(A.itemLength, A.itemLength, A.itemLength);
+      g.computeBoundingSphere();
+      return g;
+    });
+  }
+
   class Items {
     constructor(view) {
       this.view = view; this.game = view.game; this.cfg = view.game.cfg; this.scene = view.scene;
       const geos = TBS.B.withDetail(this.cfg.CROWD_DETAIL, geometries), mat = new THREE.MeshLambertMaterial({ vertexColors: true });
       const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, block: 7000, noteTop: 900 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
+      this.tentLooks = tentacleLooks(this.cfg);
+      if (this.tentLooks) { geos.tentacle.dispose(); geos.tentacle = this.tentLooks[0]; }
+      this.tentLook = 0;
       this.meshes = {};
       this.n = {};
       for (const k in geos) {
@@ -172,10 +192,10 @@
       return { x: cx - lz, y: 1.4 + layer * STEP[m.inType] * 0.8, z: cz + lx };
     }
 
-    // the Tentacle Pad drawn from the owner's picture has its tray elsewhere: its pile is shown there (a look only)
+    // the owner's Tentacle Machine has its tray in front: its pile is shown there (a look only)
     pileShift(src) {
-      const A = this.cfg.PAD_ART;
-      return A && A.on && TBS.Art && TBS.Art.pad && src.itemType === 'tentacle' ? A.pile : NO_SHIFT;
+      const A = this.cfg.PAD_MODEL;
+      return A && A.on && this.view.world.padModel && src.itemType === 'tentacle' ? A.pile : NO_SHIFT;
     }
 
     pilePos(key) {
@@ -375,14 +395,14 @@
       }
     }
 
-    heap(type, count, x, y, z, perRow, rows, sx, sz, scale) {
+    heap(type, count, x, y, z, perRow, rows, sx, sz, scale, turn) {
       const max = this.cfg.PILE_DRAW_MAX, per = perRow * rows, step = STEP[type] * (scale || 1);
       const n = Math.min(count, max);
       for (let i = 0; i < n; i++) {
         const layer = Math.floor(i / per), j = i % per, r = Math.floor(j / perRow), cc = j % perRow;
         const ox = (cc - (perRow - 1) / 2) * sx + (layer % 2 ? sx * 0.15 : 0);
         const oz = (r - (rows - 1) / 2) * sz;
-        this.put(type, x + ox, y + layer * step, z + oz, type === 'tentacle' ? Math.PI / 2 + ((i * 0.37) % 0.3) : (i * 0.9) % 1.2, 0, 0, scale);
+        this.put(type, x + ox, y + layer * step, z + oz, type === 'tentacle' ? (turn === undefined ? Math.PI / 2 : turn) + ((i * 0.37) % 0.3) - 0.15 : (i * 0.9) % 1.2, 0, 0, scale);
       }
     }
 
@@ -390,6 +410,10 @@
     update(dt) {
       const g = this.game, ch = g.chains, cfg = this.cfg, w = this.view.world;
       for (const k in this.n) this.n[k] = 0;
+      if (this.tentLooks) { // every tentacle takes the look of the current pad level
+        const l = g.levelOf('pad'), i = l ? Math.min(l.lv, this.tentLooks.length) - 1 : 0;
+        if (i !== this.tentLook) { this.tentLook = i; this.meshes.tentacle.geometry = this.tentLooks[i]; }
+      }
       this.updateStack('player', dt);
       const alive = new Set(['player']);
       for (const wk of g.workers) { alive.add('w' + wk.id); this.updateStack('w' + wk.id, dt); }
@@ -400,7 +424,7 @@
         if (id === 'g' && !g.wing2Open && !w.pop.goo.shown) continue;
         const s = c.source;
         const o = this.pileShift(s);
-        this.heap(s.itemType, Math.max(0, s.pile - inf(s.id)), s.pileX + o[0], o !== NO_SHIFT ? o[1] : 0.64, s.pileZ + o[2], o !== NO_SHIFT ? this.cfg.PAD_ART.pileGrid[0] : s.itemType === 'tentacle' ? 4 : 3, o !== NO_SHIFT ? this.cfg.PAD_ART.pileGrid[1] : s.itemType === 'tentacle' ? 1 : 2, 0.34, 0.32); // along the pad's long side (x)
+        this.heap(s.itemType, Math.max(0, s.pile - inf(s.id)), s.pileX + o[0], o !== NO_SHIFT ? o[1] : 0.64, s.pileZ + o[2], o !== NO_SHIFT ? this.cfg.PAD_MODEL.pileGrid[0] : s.itemType === 'tentacle' ? 4 : 3, o !== NO_SHIFT ? this.cfg.PAD_MODEL.pileGrid[1] : s.itemType === 'tentacle' ? 1 : 2, 0.34, 0.32, undefined, o !== NO_SHIFT ? 0 : undefined); // along the pad's long side (x)
         for (const m of c.machines) {
           if (!m.built || (id === 'g' && !w.pop.g1.shown) || (m.id === 'm2' && !w.pop.m2.shown)) continue;
           const nin = Math.min(Math.max(0, m.input - inf(m.id + ':in')), 36);

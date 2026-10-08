@@ -55,6 +55,7 @@
 
   // ---------- 3D models made outside (js/models/*.js): one mesh + one colour picture ----------
   const b64 = (str, Type) => { const bin = atob(str), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Type(u8.buffer); };
+  Ch.b64 = b64;
   Ch.model = function (m) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(b64(m.pos, Float32Array), 3));

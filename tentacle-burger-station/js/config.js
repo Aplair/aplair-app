@@ -318,11 +318,12 @@
     ANTIALIAS: false,                // smooth edges. Off everywhere (owner: no visible difference). Adreno 506 late game: 26 -> 33 FPS. 'auto' = off on phones only, true = on
     SHADOWS: false,                  // real-time shadows. Off: on weak phones (Adreno 506) showing them halved the speed (9 -> 20 FPS late game). Owner OK with no shadows
     SHADOW_MAP_SIZE: 1024,           // shadow detail
-    // owner's pictures for the Tentacle Pad (js/models/pad-art.js) instead of the built shapes. looks = which picture
-    // (1..5) each pad level shows (Lv1, Lv2, Lv3, MAX). width = picture width in floor units; anchor = the point of the
-    // picture (0..1, from the left / from the top) that stands on the pad's centre; pile = where the tentacle pile is
-    // shown, moved from the pad's pile spot by [x, height, z] so it lies on the picture's tray (a look only).
-    PAD_ART: { on: true, looks: [1, 2, 3, 5], width: 3.6, anchor: [0.51, 0.6], pile: [0, 0.12, 0.8], pileGrid: [2, 2] }, // pileGrid: pile columns (x) x rows (z) on the tray
+    // owner's 3D Tentacle Machine (js/models/tentacle-machine.js, one model per pad level) instead of the built shapes, and
+    // the owner's tentacle (js/models/tentacle-item.js) for every tentacle item, its look following the pad level.
+    // width = machine width in floor units; back = gap between the wall and the machine's back; pile = where the tentacle pile is shown, moved from the pad's pile spot by
+    // [x, height, z] so it lies on the machine's tray, across it (a look only); pileGrid = pile columns (x) x rows (z);
+    // legs = how far the legs swing (radians); itemLength = length of one tentacle item.
+    PAD_MODEL: { on: true, width: 2.5, back: 0.08, pile: [0, 0.45, 0.66], pileGrid: [1, 3], legs: 0.12, itemLength: 0.6 },
     ALIEN_MODELS: true,              // use the AI-made 3D alien models from js/models (false = the old built-in shapes)
     CROWD_DETAIL: 0.55,              // smoothness of round shapes on aliens, food and money (1 = full). Lower = far fewer triangles for phones
     OCCLUDER_FADE: 0.28,             // see-through amount for things in front of the chef (0 = invisible)

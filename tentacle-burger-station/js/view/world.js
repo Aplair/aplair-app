@@ -33,7 +33,7 @@
         const list = this.statics[wing];
         if (!list.length) continue;
         const mesh = new THREE.Mesh(B.mergeMeshes(list), wing === 2 ? this.w2shared : B.mat.vc);
-        mesh.renderOrder = -2; // floors + walls first: picture-made stations (renderOrder -1) are drawn on them, everything else after
+        mesh.renderOrder = -2; // floors + walls first
         for (const m of list) m.geometry.dispose();
         this.scene.add(mesh);
       }
@@ -239,43 +239,76 @@
       return m;
     }
 
-    // the owner's picture of the Tentacle Pad instead of the built shapes: one sheet that faces the camera (the camera never
-    // turns, so a picture drawn from the same angle looks 3D). It ignores depth and is drawn right after floors and walls,
-    // before everything else, so people, items and the tentacle pile always come on top of it. One draw call.
-    usePadArt(pcx, pcz) {
-      const A = this.cfg.PAD_ART, art = TBS.Art.pad, W = A.width, H = W * art.h / art.w;
-      const geo = new THREE.PlaneGeometry(W, H).translate((0.5 - A.anchor[0]) * W, (A.anchor[1] - 0.5) * H, 0);
-      const mat = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false, blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
-      mat.visible = false; // until the picture is ready
-      const sheet = new THREE.Mesh(geo, mat);
-      sheet.renderOrder = -1;
-      const grp = new THREE.Group();
-      grp.position.set(pcx, 0, pcz);
-      grp.add(sheet);
+    // the owner's 3D Tentacle Machine instead of the built shapes: one skinned model per pad level (only the current one is
+    // drawn: one draw call). Its legs swing a little (bones turned by code: the tool's files had a skeleton but no motion).
+    usePadModel(pcx, pcz) {
+      const A = this.cfg.PAD_MODEL, M = TBS.Models.tentacleMachine, b64 = TBS.Characters.b64;
+      const grp = new THREE.Group(); // pops in when built (scale 0 -> 1)
+      grp.position.set(pcx, 0, this.cfg.LAYOUT.W1.pad.z0 + A.back); // back just off the wall (the pipes on its back must not go into it)
       this.scene.add(grp);
-      grp.updateMatrixWorld(true);
-      const yaw = this.cfg.CAM_YAW_DEG * Math.PI / 180, pit = this.cfg.CAM_PITCH_DEG * Math.PI / 180;
-      sheet.lookAt(pcx + Math.sin(yaw) * Math.cos(pit), Math.sin(pit), pcz + Math.cos(yaw) * Math.cos(pit));
-      this.padArt = { grp: grp, mat: mat, look: -1 };
+      const levels = M.levels.map((L) => {
+        const box = L.box, s = A.width / (box[3] - box[0]);
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(b64(L.pos, Float32Array), 3));
+        g.setAttribute('normal', new THREE.BufferAttribute(b64(L.nrm, Int8Array), 3, true));
+        g.setAttribute('uv', new THREE.BufferAttribute(b64(L.uv, Float32Array), 2));
+        g.setAttribute('skinIndex', new THREE.BufferAttribute(b64(L.joints, Uint8Array), 4));
+        g.setAttribute('skinWeight', new THREE.BufferAttribute(b64(L.weights, Uint8Array), 4, true));
+        g.setIndex(new THREE.BufferAttribute(b64(L.idx, Uint16Array), 1));
+        const tex = new THREE.TextureLoader().load(L.tex);
+        tex.flipY = false; // glTF pictures are stored upside down compared to three.js
+        const mesh = new THREE.SkinnedMesh(g, new THREE.MeshLambertMaterial({ map: tex }));
+        mesh.frustumCulled = false;
+        mesh.scale.setScalar(s);
+        mesh.position.set(-(box[0] + box[3]) / 2 * s, -box[1] * s, -box[2] * s); // its back on the group's origin
+        const bones = L.bones.map((bd) => { const bn = new THREE.Bone(); new THREE.Matrix4().fromArray(bd.m).decompose(bn.position, bn.quaternion, bn.scale); return bn; });
+        L.bones.forEach((bd, i) => (bd.p >= 0 ? bones[bd.p] : mesh).add(bones[i]));
+        mesh.bind(new THREE.Skeleton(bones, L.bones.map((bd) => new THREE.Matrix4().fromArray(bd.ibm))), new THREE.Matrix4());
+        mesh.visible = false;
+        grp.add(mesh);
+        // legs = chains of 3+ bones branching off the body; the tray chain at the front never moves
+        const rest = L.bones.map((bd) => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(bd.ibm).invert()));
+        const kids = (i) => L.bones.map((bd, k) => k).filter((k) => L.bones[k].p === i);
+        const legs = [];
+        L.bones.forEach((bd, i) => {
+          if (bd.p < 0 || kids(bd.p).length < 2) return;
+          const chain = [i];
+          for (let k = kids(i); k.length === 1; k = kids(k[0])) chain.push(k[0]);
+          const tip = rest[chain[chain.length - 1]];
+          if (chain.length < 3 || (tip.z > 0.2 && Math.abs(tip.x) < 0.2)) return;
+          const out = new THREE.Vector3(rest[i].x, 0, rest[i].z).normalize();
+          legs.push({ bones: chain.map((k) => bones[k]), rest: chain.map((k) => bones[k].quaternion.clone()), axis: new THREE.Vector3(out.z, 0, -out.x), ph: Math.atan2(out.x, out.z) * 2 });
+        });
+        return { mesh: mesh, legs: legs };
+      });
+      this.padModel = { grp: grp, levels: levels, cur: -1, q: new THREE.Quaternion() };
       this.padMesh.visible = false; // the built pad stays only as the see-through-fade box
       for (const t of this.tentacles) t.base.visible = false;
       this.pop.src1 = { obj: grp, shown: false, track: 'b_src1' };
-      this.setPadLook(A.looks[0] - 1);
+      const occ = this.occluders.find((o) => o.obj === this.padMesh);
+      if (occ) { occ.obj = grp; occ.box.set(new THREE.Vector3(pcx - A.width / 2, 0, grp.position.z), new THREE.Vector3(pcx + A.width / 2, A.width * 0.7, grp.position.z + A.width)); } // the machine fades when the chef walks behind it
+      this.setPadLevel(0);
     }
 
-    setPadLook(i) {
-      const a = this.padArt;
-      if (!a || a.look === i) return;
-      a.look = i;
-      const im = new Image();
-      im.onload = () => {
-        if (a.look !== i) return;
-        const t = new THREE.Texture(im);
-        t.minFilter = THREE.LinearMipmapLinearFilter; t.needsUpdate = true;
-        if (a.mat.map) a.mat.map.dispose();
-        a.mat.map = t; a.mat.visible = true; a.mat.needsUpdate = true;
-      };
-      im.src = TBS.Art.pad.looks[i];
+    setPadLevel(i) {
+      const P = this.padModel;
+      if (!P || P.cur === i) return;
+      P.cur = i;
+      P.levels.forEach((L, k) => { L.mesh.visible = k === i; });
+    }
+
+    // legs: each joint turns a little up and down around the leg's side axis, one leg after another (a calm idle)
+    animatePad(t) {
+      const P = this.padModel, L = P && P.levels[P.cur];
+      if (!L || !P.grp.visible) return;
+      const amp = this.cfg.PAD_MODEL.legs;
+      for (const leg of L.legs) {
+        const w = Math.sin(t * 2.2 + leg.ph);
+        leg.bones.forEach((bn, k) => {
+          P.q.setFromAxisAngle(leg.axis, w * amp * (k === 0 ? 1 : -0.6));
+          bn.quaternion.copy(leg.rest[k]).premultiply(P.q);
+        });
+      }
     }
 
     setMachineLook(m, top, level) {
@@ -316,7 +349,7 @@
         if (!i) this.tentInst = [seg1, seg2].map((sg) => { const im = new THREE.InstancedMesh(sg.geometry, B.mat.vcInst, 5); im.count = 0; im.frustumCulled = false; this.scene.add(im); return im; });
       }
       this.pop.src1 = { obj: this.padMesh, extra: this.tentacles.map((t) => t.base), shown: false, track: 'b_src1' };
-      if (this.cfg.PAD_ART && this.cfg.PAD_ART.on && TBS.Art && TBS.Art.pad) this.usePadArt(pcx, pcz);
+      if (this.cfg.PAD_MODEL && this.cfg.PAD_MODEL.on && TBS.Models && TBS.Models.tentacleMachine) this.usePadModel(pcx, pcz);
       const mk = (def, accent, glow, id) => {
         const m = this.machineMesh(accent, glow);
         m.group.position.set((def.x0 + def.x1) / 2, 0, (def.z0 + def.z1) / 2);
@@ -583,9 +616,9 @@
           this.setCounterLook(lk, ct.level);
         }
       }
-      if (this.padArt) { // pad level -> its picture
-        const l = g.levelOf('pad'), looks = this.cfg.PAD_ART.looks;
-        if (l) this.setPadLook(looks[Math.min(l.lv, looks.length) - 1] - 1);
+      if (this.padModel) { // pad level -> its model
+        const l = g.levelOf('pad');
+        if (l) this.setPadLevel(Math.min(l.lv, this.padModel.levels.length) - 1);
       }
       for (const id in this.machineLook) {
         const ml = this.machineLook[id];
@@ -606,6 +639,7 @@
         tn.seg1.rotation.x = Math.cos(t * 1.7 + tn.ph) * 0.3;
         tn.tip.rotation.z = Math.sin(t * 3.0 + tn.ph + 1) * 0.6;
       }
+      this.animatePad(t);
       this.syncTableBatch('p'); this.syncTableBatch('g');
       let nt = 0;
       for (const tn of this.tentacles) {
