@@ -90,7 +90,7 @@
     });
     button('HUD off', (b) => {
       const hide = b.textContent === 'HUD off';
-      for (const id of ['hud', 'overlay']) document.getElementById(id).style.display = hide ? 'none' : '';
+      document.getElementById('hud').style.display = hide ? 'none' : ''; view.overlay.labels.hidden = hide;
       b.textContent = hide ? 'HUD on' : 'HUD off';
     });
 
@@ -110,14 +110,14 @@
       ['normal', () => {}],
       ['no world', () => hidden.add('world')], ['no floor', () => hidden.add('floor')], ['no aliens', () => hidden.add('aliens')],
       ['no items', () => hidden.add('items')], ['no workers+chef', () => { hidden.add('workers'); hidden.add('chef'); }],
-      ['no labels', () => { document.getElementById('overlay').style.display = 'none'; }],
+      ['no labels', () => { view.overlay.labels.hidden = true; }],
       ['no HUD', () => { document.getElementById('hud').style.display = 'none'; }],
       ['sharp 1.25', () => setRatio(1.25)], ['sharp 1', () => setRatio(1)],
       ['draw off', () => { drawOff = true; }],
       // the same while walking a real trip: from the far corner of Wing 1 to the far corner of Wing 2 (or the end
       // of Wing 1 while Wing 2 is closed), then back. The test steers the chef by itself; each row = one trip.
       ['WALK normal', () => {}, true],
-      ['WALK no labels', () => { document.getElementById('overlay').style.display = 'none'; }, true],
+      ['WALK no labels', () => { view.overlay.labels.hidden = true; }, true],
       ['WALK no HUD', () => { document.getElementById('hud').style.display = 'none'; }, true],
       ['WALK no world', () => hidden.add('world'), true],
       ['WALK draw off', () => { drawOff = true; }, true]
@@ -150,7 +150,7 @@
     const walk = (on) => { if (!on) route = null; };
     const reset = () => {
       hidden.clear(); drawOff = false; setRatio(baseRatio); walk(false);
-      for (const id of ['hud', 'overlay']) document.getElementById(id).style.display = '';
+      document.getElementById('hud').style.display = ''; view.overlay.labels.hidden = false;
     };
     const table = document.createElement('div');
     table.style.cssText = 'margin-top:4px;white-space:pre;';

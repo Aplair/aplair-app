@@ -63,7 +63,7 @@
       this.overlay.update(dt);
     }
 
-    render() { this.renderer.render(this.scene, this.camera); }
+    render() { this.renderer.render(this.scene, this.camera); this.overlay.labels.render(this.renderer); } // labels last, on top
   }
 
   TBS.View = View;
