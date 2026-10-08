@@ -53,6 +53,20 @@
     ]);
   }
 
+  // ---------- 3D models made outside (js/models/*.js): one mesh + one colour picture ----------
+  const b64 = (str, Type) => { const bin = atob(str), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Type(u8.buffer); };
+  Ch.model = function (m) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(b64(m.pos, Float32Array), 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(b64(m.nrm, Float32Array), 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(b64(m.uv, Float32Array), 2));
+    g.setIndex(new THREE.BufferAttribute(b64(m.idx, Uint16Array), 1));
+    g.computeBoundingSphere();
+    const tex = new THREE.TextureLoader().load(m.tex);
+    tex.flipY = false; // glTF pictures are stored upside down compared to three.js
+    return { geometry: g, material: new THREE.MeshLambertMaterial({ map: tex }) };
+  };
+
   // ---------- chef / worker rig ----------
   function makeRig(suit, hat) {
     const skin = 0xf2c7a0, white = 0xf6f8fb;
@@ -136,7 +150,9 @@
       this.batches = {}; // look (suit colour) -> RigBatch
       const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
       this.alien = {
-        p: new THREE.InstancedMesh(Ch.purpleAlienGeometry(), mat, 72),
+        p: TBS.Models && TBS.Models.alienPurple && TBS.CONFIG.ALIEN_MODELS
+          ? (() => { const md = Ch.model(TBS.Models.alienPurple); return new THREE.InstancedMesh(md.geometry, md.material, 72); })()
+          : new THREE.InstancedMesh(Ch.purpleAlienGeometry(), mat, 72),
         g: new THREE.InstancedMesh(Ch.greenAlienGeometry(), mat, 72)
       };
       this.foot = new THREE.InstancedMesh(B.merge([{ g: B.sph(0.11, 8, 6), c: 0x6fa8ff, p: [0, 0.05, 0], s: [1, 0.5, 1.5] }]), mat, 72);
