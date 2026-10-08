@@ -47,6 +47,24 @@
       view.scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
       b.textContent = on ? 'Shadows off' : 'Shadows on';
     });
+    const remakeShadows = () => {
+      const sh = view.sun.shadow;
+      if (sh.map) { sh.map.dispose(); sh.map = null; }
+      view.scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
+    };
+    button('Shadow hard', (b) => {
+      const hard = view.renderer.shadowMap.type !== THREE.BasicShadowMap;
+      view.renderer.shadowMap.type = hard ? THREE.BasicShadowMap : THREE.PCFShadowMap;
+      remakeShadows();
+      b.textContent = hard ? 'Shadow soft' : 'Shadow hard';
+    });
+    button('Shadow 512', (b) => {
+      const small = view.sun.shadow.mapSize.x > 512;
+      const n = small ? 512 : M.game.cfg.SHADOW_MAP_SIZE;
+      view.sun.shadow.mapSize.set(n, n);
+      remakeShadows();
+      b.textContent = small ? 'Shadow ' + M.game.cfg.SHADOW_MAP_SIZE : 'Shadow 512';
+    });
     button('HUD off', (b) => {
       const hide = b.textContent === 'HUD off';
       for (const id of ['hud', 'overlay', 'confetti']) document.getElementById(id).style.display = hide ? 'none' : '';
