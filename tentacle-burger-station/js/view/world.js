@@ -216,7 +216,7 @@
     machineMesh(accent, glow) {
       const col = C();
       const g = new THREE.Group();
-      const body = B.mesh([
+      const baseParts = [
         { g: B.box(1.25, 1.3, 2.8), c: 0xd7dde6, p: [-0.425, 0.65, 0] },
         { g: B.box(0.06, 0.5, 1.0), c: 0x1b2233, p: [0.21, 0.95, -0.35] },
         { g: B.box(0.05, 0.12, 0.85), c: glow, p: [0.23, 0.82, -0.35] },
@@ -227,20 +227,26 @@
         { g: B.box(0.95, 0.68, 0.1), c: 0xc4ccd8, p: [0.62, 0.36, 1.43] },
         { g: B.box(0.08, 0.2, 1.35), c: 0x8a93a3, p: [1.07, 0.84, 0.8] },
         { g: B.box(0.2, 0.25, 0.25), c: col.money, p: [0.22, 1.12, -1.05] }
-      ], { own: true });
-      const topMat = new THREE.MeshLambertMaterial({ color: accent });
-      const top = new THREE.Mesh(B.box(1.3, 0.18, 2.85), topMat);
-      top.position.set(-0.425, 1.35, 0);
-      top.castShadow = true;
-      const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff3a0 });
+      ];
+      // body + coloured top = ONE mesh, all lit lamps = ONE mesh (2 draw calls instead of up to 7).
+      // A level change rebuilds the shapes; the materials stay (the see-through fade keeps working).
+      const body = B.mesh(baseParts, { own: true });
+      const lamps = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true }));
+      g.add(body, lamps);
+      const m = { group: g, body: body, lampMesh: lamps, baseParts: baseParts };
+      this.setMachineLook(m, accent, 4);
+      return m;
+    }
+
+    setMachineLook(m, top, level) {
+      const old = m.body.geometry;
+      m.body.geometry = B.merge(m.baseParts.concat([{ g: B.box(1.3, 0.18, 2.85), c: top, p: [-0.425, 1.35, 0] }]));
+      old.dispose();
       const lamps = [];
-      for (let i = 0; i < 5; i++) {
-        const l = new THREE.Mesh(B.sph(0.07, 8, 6), lampMat);
-        l.position.set(0.15, 1.5, 0.2 + i * 0.25);
-        g.add(l); lamps.push(l);
-      }
-      g.add(body, top);
-      return { group: g, topMat: topMat, lamps: lamps, body: body };
+      for (let i = 0; i <= level && i < 5; i++) lamps.push({ g: B.sph(0.07, 8, 6), c: 0xfff3a0, p: [0.15, 1.5, 0.2 + i * 0.25] });
+      m.lampMesh.geometry.dispose();
+      m.lampMesh.geometry = lamps.length ? B.merge(lamps) : new THREE.BufferGeometry();
+      m.lampMesh.visible = lamps.length > 0;
     }
 
     buildStations() {
@@ -264,8 +270,10 @@
         const tip = new THREE.Group(); tip.position.y = 0.55;
         const seg2 = B.mesh([{ g: B.cyl(0.02, 0.07, 0.5, 8), c: col.purple, p: [0, 0.25, 0] }, { g: B.sph(0.022, 5, 4), c: 0xf2b6e6, p: [0.05, 0.15, 0] }]);
         tip.add(seg2); seg1.add(tip); base.add(seg1);
+        seg1.visible = false; // only holds the pose: all 5 tentacles are drawn by 2 shared draw calls (tentInst)
         this.scene.add(base);
-        this.tentacles.push({ base: base, seg1: seg1, tip: tip, ph: i * 1.7 });
+        this.tentacles.push({ base: base, seg1: seg1, seg2: seg2, tip: tip, ph: i * 1.7 });
+        if (!i) this.tentInst = [seg1, seg2].map((sg) => { const im = new THREE.InstancedMesh(sg.geometry, B.mat.vc, 5); im.count = 0; im.frustumCulled = false; this.scene.add(im); return im; });
       }
       this.pop.src1 = { obj: this.padMesh, extra: this.tentacles.map((t) => t.base), shown: false, track: 'b_src1' };
       const mk = (def, accent, glow, id) => {
@@ -512,8 +520,7 @@
         for (const cid in g.chains) for (const mc of g.chains[cid].machines) if (mc.id === id) m = mc;
         if (!m || m.level === ml.level) continue;
         ml.level = m.level;
-        ml.m.topMat.color.setHex(LEVEL_ACCENT[Math.min(m.level, LEVEL_ACCENT.length - 1)]);
-        ml.m.lamps.forEach((l, i) => { l.visible = i <= m.level; });
+        this.setMachineLook(ml.m, LEVEL_ACCENT[Math.min(m.level, LEVEL_ACCENT.length - 1)], m.level);
       }
     }
 
@@ -526,6 +533,13 @@
         tn.seg1.rotation.x = Math.cos(t * 1.7 + tn.ph) * 0.3;
         tn.tip.rotation.z = Math.sin(t * 3.0 + tn.ph + 1) * 0.6;
       }
+      let nt = 0;
+      for (const tn of this.tentacles) {
+        if (!tn.base.visible) continue;
+        tn.base.updateMatrixWorld(true);
+        this.tentInst[0].setMatrixAt(nt, tn.seg1.matrixWorld); this.tentInst[1].setMatrixAt(nt, tn.seg2.matrixWorld); nt++;
+      }
+      for (const im of this.tentInst) B.flushInstances(im, nt);
       for (const id in this.squash) {
         const s = this.squash[id];
         if (s.t < 1) {
