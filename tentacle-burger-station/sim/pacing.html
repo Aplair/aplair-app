@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tentacle Burger Station - pacing simulation</title>
+<style>
+  body { margin: 0; padding: 20px; background: #0b1030; color: #e8ecff; font: 14px/1.45 Consolas, "Courier New", monospace; }
+  h1 { font: 800 22px "Segoe UI", Arial, sans-serif; margin: 0 0 6px; }
+  p { font: 14px "Segoe UI", Arial, sans-serif; color: #b9c2e8; margin: 0 0 14px; }
+  pre { white-space: pre-wrap; background: #141a45; border-radius: 10px; padding: 16px; }
+</style>
+</head>
+<body>
+<h1>Pacing simulation</h1>
+<p>A bot plays the real game code (the same files as the game) and writes when each level is reached. Change numbers in js/config.js, save, and open this page again.</p>
+<pre id="out">Running... (a few seconds)</pre>
+<script src="../js/config.js"></script>
+<script src="../js/core/util.js"></script>
+<script src="../js/core/nav.js"></script>
+<script src="../js/core/economy.js"></script>
+<script src="../js/core/stations.js"></script>
+<script src="../js/core/customers.js"></script>
+<script src="../js/core/workers.js"></script>
+<script src="../js/core/player.js"></script>
+<script src="../js/core/guide.js"></script>
+<script src="../js/core/offers.js"></script>
+<script src="../js/core/game.js"></script>
+<script src="bot.js"></script>
+<script>
+  setTimeout(function () {
+    var out = document.getElementById('out');
+    try { out.textContent = TBS.Pacing.report(TBS.CONFIG, 12, 1 / 30).text; }
+    catch (e) { out.textContent = 'Error: ' + e.message; }
+  }, 50);
+</script>
+</body>
+</html>

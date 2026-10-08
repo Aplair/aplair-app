@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Tentacle Burger Station</title>
+<!-- CrazyGames SDK v3 (loaded before the game code). The game also runs without it. -->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="overlay"></div>
+<div id="hud">
+  <div class="top-left">
+    <div class="res-row"><div id="money-box"><span class="coin"></span><span id="money">$0</span></div><div id="gem-box"><span class="gem"></span><span id="gems">0</span></div></div>
+    <div id="boosts"></div>
+  </div>
+  <div class="top-center">
+    <div id="level-box"><div id="level-badge"><span id="level-num">1</span></div><div id="xp-bar"><div id="xp-fill"></div></div></div>
+  </div>
+  <div class="top-right"><button id="sound-btn" class="icon-btn" aria-label="Sound on/off"></button></div>
+  <div id="toast"></div>
+  <div id="banner"></div>
+  <div id="hint">
+    <div class="keys"><span class="k">W</span><span class="row"><span class="k">A</span><span class="k">S</span><span class="k">D</span></span></div>
+    <div class="or">or</div>
+    <div class="keys"><span class="k">&uarr;</span><span class="row"><span class="k">&larr;</span><span class="k">&darr;</span><span class="k">&rarr;</span></span></div>
+    <div class="or">or</div>
+    <div class="drag"><span class="dot"></span><span class="trail"></span></div>
+  </div>
+  <div id="dev-badge"></div>
+</div>
+<div id="joy"><div id="joy-knob"></div></div>
+<div id="panel-layer"></div>
+<div id="blocker"><div class="spinner"></div></div>
+<canvas id="confetti"></canvas>
+<div id="loading">
+  <div class="title">Tentacle Burger Station</div>
+  <div class="burger"><span class="t1"></span><span class="t2"></span><span class="bun"></span><span class="patty"></span><span class="bun b"></span></div>
+  <div class="bar"><div id="load-fill"></div></div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/core/util.js"></script>
+<script src="js/core/nav.js"></script>
+<script src="js/core/economy.js"></script>
+<script src="js/core/stations.js"></script>
+<script src="js/core/customers.js"></script>
+<script src="js/core/workers.js"></script>
+<script src="js/core/player.js"></script>
+<script src="js/core/guide.js"></script>
+<script src="js/core/offers.js"></script>
+<script src="js/core/game.js"></script>
+<script src="js/cg.js"></script>
+<script src="js/save.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/view/builders.js"></script>
+<script src="js/view/characters.js"></script>
+<script src="js/view/world.js"></script>
+<script src="js/view/items.js"></script>
+<script src="js/view/floorcircle.js"></script>
+<script src="js/view/circles.js"></script>
+<script src="js/view/fx.js"></script>
+<script src="js/view/overlay.js"></script>
+<script src="js/view/camera.js"></script>
+<script src="js/view/occlusion.js"></script>
+<script src="js/view/scene.js"></script>
+<script src="js/ui/hud.js"></script>
+<script src="js/ads.js"></script>
+<script src="js/devtools.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
