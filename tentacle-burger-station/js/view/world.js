@@ -259,10 +259,16 @@
         g.setIndex(new THREE.BufferAttribute(b64(L.idx, Uint16Array), 1));
         const tex = new THREE.TextureLoader().load(L.tex);
         tex.flipY = false; // glTF pictures are stored upside down compared to three.js
-        const mesh = new THREE.SkinnedMesh(g, new THREE.MeshPhongMaterial({ map: tex, shininess: 12, specular: 0x202020 })); // light worked out per pixel: big smooth parts stay smooth
+        const phong = new THREE.MeshPhongMaterial({ map: tex, shininess: 12, specular: 0x202020 }); // light worked out per pixel: big smooth parts stay smooth
+        const mesh = new THREE.SkinnedMesh(g, phong);
         mesh.frustumCulled = false;
         mesh.scale.setScalar(s);
         mesh.position.set(-(box[0] + box[3]) / 2 * s, -box[1] * s, -box[2] * s); // its back on the group's origin
+        // the same shape without bones (no leg motion) and a simpler light: for the speed test (setPadStyle)
+        const still = new THREE.Mesh(g, phong);
+        still.frustumCulled = false; still.visible = false;
+        still.scale.copy(mesh.scale); still.position.copy(mesh.position);
+        grp.add(still);
         const bones = L.bones.map((bd) => { const bn = new THREE.Bone(); new THREE.Matrix4().fromArray(bd.m).decompose(bn.position, bn.quaternion, bn.scale); return bn; });
         L.bones.forEach((bd, i) => (bd.p >= 0 ? bones[bd.p] : mesh).add(bones[i]));
         mesh.bind(new THREE.Skeleton(bones, L.bones.map((bd) => new THREE.Matrix4().fromArray(bd.ibm))), new THREE.Matrix4());
@@ -281,9 +287,9 @@
           const out = new THREE.Vector3(rest[i].x, 0, rest[i].z).normalize();
           legs.push({ bones: chain.map((k) => bones[k]), rest: chain.map((k) => bones[k].quaternion.clone()), axis: new THREE.Vector3(out.z, 0, -out.x), ph: Math.atan2(out.x, out.z) * 2 });
         });
-        return { mesh: mesh, legs: legs };
+        return { mesh: mesh, still: still, phong: phong, lambert: new THREE.MeshLambertMaterial({ map: tex }), legs: legs };
       });
-      this.padModel = { grp: grp, levels: levels, cur: -1, q: new THREE.Quaternion() };
+      this.padModel = { grp: grp, levels: levels, cur: -1, q: new THREE.Quaternion(), style: { motion: true, phong: true } };
       this.padMesh.visible = false; // the built pad stays only as the see-through-fade box
       for (const t of this.tentacles) t.base.visible = false;
       this.pop.src1 = { obj: grp, shown: false, track: 'b_src1' };
@@ -296,13 +302,22 @@
       const P = this.padModel;
       if (!P || P.cur === i) return;
       P.cur = i;
-      P.levels.forEach((L, k) => { L.mesh.visible = k === i; });
+      P.levels.forEach((L, k) => { L.mesh.visible = k === i && P.style.motion; L.still.visible = k === i && !P.style.motion; });
+    }
+
+    // speed test only (perf.js): motion off = the shape without bones; phong off = light worked out per corner
+    setPadStyle(motion, phong) {
+      const P = this.padModel;
+      if (!P) return;
+      P.style.motion = motion; P.style.phong = phong;
+      for (const L of P.levels) { L.mesh.material = L.still.material = phong ? L.phong : L.lambert; }
+      const cur = P.cur; P.cur = -1; this.setPadLevel(cur);
     }
 
     // legs: each joint turns a little up and down around the leg's side axis, one leg after another (a calm idle)
     animatePad(t) {
       const P = this.padModel, L = P && P.levels[P.cur];
-      if (!L || !P.grp.visible) return;
+      if (!L || !P.grp.visible || !P.style.motion) return;
       const amp = this.cfg.PAD_MODEL.legs;
       for (const leg of L.legs) {
         const w = Math.sin(t * 2.2 + leg.ph);

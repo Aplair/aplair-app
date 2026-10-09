@@ -113,6 +113,11 @@
       ['no labels', () => { view.overlay.labels.hidden = true; }],
       ['no HUD', () => { document.getElementById('hud').style.display = 'none'; }],
       ['sharp 1.25', () => setRatio(1.25)], ['sharp 1', () => setRatio(1)],
+      // the owner's 3D Tentacle Machine: hidden / without leg motion (no bones) / simpler light / both
+      ['pad hidden', () => { const P = view.world.padModel; if (P) P.grp.visible = false; }],
+      ['pad no motion', () => view.world.setPadStyle(false, true)],
+      ['pad simple light', () => view.world.setPadStyle(true, false)],
+      ['pad no mot+light', () => view.world.setPadStyle(false, false)],
       ['draw off', () => { drawOff = true; }],
       // the same while walking a real trip: from the far corner of Wing 1 to the far corner of Wing 2 (or the end
       // of Wing 1 while Wing 2 is closed), then back. The test steers the chef by itself; each row = one trip.
@@ -150,6 +155,7 @@
     const walk = (on) => { if (!on) route = null; };
     const reset = () => {
       hidden.clear(); drawOff = false; setRatio(baseRatio); walk(false);
+      const P = view.world.padModel; if (P) { P.grp.visible = view.world.pop.src1.shown; view.world.setPadStyle(true, true); }
       document.getElementById('hud').style.display = ''; view.overlay.labels.hidden = false;
     };
     const table = document.createElement('div');
