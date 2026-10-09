@@ -415,10 +415,42 @@
       return this.add(grp);
     }
 
+    // the space-diner tables made in Blender (js/models/tables.js): one shape per seat count and level, the
+    // magenta corners painted in the wing's colour. Shapes are decoded once and shared.
+    tableShape(s, level, accent) {
+      const T = TBS.Models && TBS.Models.tables, key = s + '_' + Math.min(level, 4) + '_' + accent;
+      const d = T && T[s + '_' + Math.min(level, 4)];
+      if (!d) return null;
+      this.tableShapes = this.tableShapes || {};
+      if (this.tableShapes[key]) return this.tableShapes[key];
+      const p = b64(d.pos, Int16Array), n = b64(d.nrm, Int8Array), c = b64(d.col, Uint8Array), ac = new THREE.Color(accent);
+      const pos = new Float32Array(p.length), nrm = new Float32Array(n.length), col = new Float32Array(c.length);
+      for (let i = 0; i < p.length; i++) { pos[i] = p[i] / 16384; nrm[i] = n[i] / 127; }
+      for (let i = 0; i < c.length; i += 3) {
+        if (c[i] === 255 && c[i + 1] === 0 && c[i + 2] === 255) { col[i] = ac.r; col[i + 1] = ac.g; col[i + 2] = ac.b; }
+        else { col[i] = c[i] / 255; col[i + 1] = c[i + 1] / 255; col[i + 2] = c[i + 2] / 255; }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      g.setIndex(new THREE.BufferAttribute(b64(d.idx, Uint16Array), 1));
+      g.computeBoundingSphere();
+      return (this.tableShapes[key] = g);
+    }
+
     setTableLevel(grp, level) {
       const tl = grp.userData.look, pos = tl.pos, s = pos.s || 2, r = TBS.TABLE_TOP_R[s] || 0.5;
       if (tl.level === level) return;
       tl.level = level;
+      const shape = this.tableShape(s, level, tl.accent);
+      if (shape) { // shared shape: the old mesh is removed but the shape is kept for the other tables
+        const mesh = new THREE.Mesh(shape, B.mat.vc);
+        if (tl.mesh) { grp.remove(tl.mesh); if (!tl.shared) tl.mesh.geometry.dispose(); }
+        tl.mesh = mesh; tl.shared = true;
+        grp.add(mesh);
+        return;
+      }
       const top = TABLE_TOP[Math.min(level, TABLE_TOP.length - 1)], cloth = TABLE_CLOTH[Math.min(level, TABLE_CLOTH.length - 1)];
       const rim = level >= TABLE_TOP.length - 1 ? 0xffd23a : tl.accent;
       const parts = [{ g: B.cyl(0.07, 0.1, 0.72, 10), c: 0x8a93a3, p: [0, 0.36, 0] }, { g: B.cyl(0.3, 0.3, 0.04, 14), c: 0x8a93a3, p: [0, 0.02, 0] }];
@@ -429,8 +461,8 @@
       parts.push({ g: s === 4 ? B.box(r * 2 + 0.06, 0.04, r * 2 + 0.06) : B.cyl(r + 0.03, r + 0.03, 0.04, 20), c: rim, p: [0, 0.71, 0] });
       if (level >= 1) parts.push({ g: s === 4 ? B.box(r * 2 + 0.14, 0.2, r * 2 + 0.14) : B.cyl(r + 0.08, r + 0.12, 0.2, 20), c: cloth, p: [0, 0.66, 0] });
       const mesh = B.mesh(parts);
-      if (tl.mesh) { grp.remove(tl.mesh); tl.mesh.geometry.dispose(); }
-      tl.mesh = mesh;
+      if (tl.mesh) { grp.remove(tl.mesh); if (!tl.shared) tl.mesh.geometry.dispose(); }
+      tl.mesh = mesh; tl.shared = false;
       grp.add(mesh);
     }
 
