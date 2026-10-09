@@ -251,15 +251,15 @@
       const levels = M.levels.map((L) => {
         const box = L.box, s = A.width / (box[3] - box[0]);
         const g = new THREE.BufferGeometry();
-        g.setAttribute('position', new THREE.BufferAttribute(b64(L.pos, Float32Array), 3));
+        g.setAttribute('position', new THREE.BufferAttribute(b64(L.pos, Int16Array), 3, true)); // small numbers kept small: the file is 1/3 lighter
         g.setAttribute('normal', new THREE.BufferAttribute(b64(L.nrm, Int8Array), 3, true));
-        g.setAttribute('uv', new THREE.BufferAttribute(b64(L.uv, Float32Array), 2));
+        g.setAttribute('uv', new THREE.BufferAttribute(b64(L.uv, Uint16Array), 2, true));
         g.setAttribute('skinIndex', new THREE.BufferAttribute(b64(L.joints, Uint8Array), 4));
         g.setAttribute('skinWeight', new THREE.BufferAttribute(b64(L.weights, Uint8Array), 4, true));
         g.setIndex(new THREE.BufferAttribute(b64(L.idx, Uint16Array), 1));
         const tex = new THREE.TextureLoader().load(L.tex);
         tex.flipY = false; // glTF pictures are stored upside down compared to three.js
-        const mesh = new THREE.SkinnedMesh(g, new THREE.MeshLambertMaterial({ map: tex }));
+        const mesh = new THREE.SkinnedMesh(g, new THREE.MeshPhongMaterial({ map: tex, shininess: 12, specular: 0x202020 })); // light worked out per pixel: big smooth parts stay smooth
         mesh.frustumCulled = false;
         mesh.scale.setScalar(s);
         mesh.position.set(-(box[0] + box[3]) / 2 * s, -box[1] * s, -box[2] * s); // its back on the group's origin
