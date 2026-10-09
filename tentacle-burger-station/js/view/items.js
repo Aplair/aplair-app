@@ -83,11 +83,30 @@
     });
   }
 
+  // a food shape from js/models/food.js (Kenney's Food Kit, recoloured): colour per corner like our own shapes
+  function foodShape(name) {
+    const d = TBS.Models && TBS.Models.food && TBS.Models.food[name];
+    if (!d) return null;
+    const p = b64(d.pos, Int16Array), n = b64(d.nrm, Int8Array), c = b64(d.col, Uint8Array);
+    const pos = new Float32Array(p.length), nrm = new Float32Array(n.length), col = new Float32Array(c.length);
+    for (let i = 0; i < p.length; i++) { pos[i] = p[i] / 16384; nrm[i] = n[i] / 127; }
+    for (let i = 0; i < c.length; i++) col[i] = c[i] / 255;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setIndex(new THREE.BufferAttribute(b64(d.idx, Uint16Array), 1));
+    g.computeBoundingSphere();
+    return g;
+  }
+
   class Items {
     constructor(view) {
       this.view = view; this.game = view.game; this.cfg = view.game.cfg; this.scene = view.scene;
       const geos = TBS.B.withDetail(this.cfg.CROWD_DETAIL, geometries), mat = new THREE.MeshLambertMaterial({ vertexColors: true });
       const caps = { tentacle: 320, burger: 420, goo: 220, dish: 300, bill: 200, bundle: 300, plate: 120, block: 7000, noteTop: 900 }; // notes: 2 tall sales piles + 22 tip piles at their tallest
+      const burger = this.cfg.BURGER_MODEL && foodShape(this.cfg.BURGER_MODEL);
+      if (burger) { geos.burger.dispose(); geos.burger = burger; }
       this.tentLooks = tentacleLooks(this.cfg);
       if (this.tentLooks) { geos.tentacle.dispose(); geos.tentacle = this.tentLooks[0].geo; }
       this.tentLook = 0;

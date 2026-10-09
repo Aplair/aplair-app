@@ -6,3 +6,7 @@ Needs Python with the Blender module:  pip install bpy==5.2.2
 
 Style rules for every piece: simple low-poly shapes, colour per corner (no pictures), space / planets theme,
 colour (1, 0, 1) = the wing's colour (purple Wing 1, blue Wing 2), cyan glow, gold at MAX level.
+
+Kenney assets (kenney.nl, CC0 = free for commercial use, credit not required but nice: "Kenney (www.kenney.nl)"):
+  python3 kenney.py model.glb food.json key height ["r,g,b>r,g,b" ...]   -> one model, colours from Kenney's colour map, optional recolouring
+  The burger: Food Kit burger.glb, 'plain' and 'tentacle' (brown patty -> purple), resized to width 0.5 / height 0.28.
