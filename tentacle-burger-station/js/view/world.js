@@ -350,7 +350,10 @@
         { g: B.cyl(0.55, 0.55, 0.05, 20), c: 0x5b1f6e, p: [-0.35, 1.02, 0] },
         { g: B.box(0.7, 0.06, 1.6), c: 0xb7c0cd, p: [0.6, 0.6, 0] }
       ], { own: true, pos: [pcx, 0, pcz] }), false);
-      this.padMesh.rotation.y = FACE_HALL; this.addOccluder(this.padMesh);
+      this.padMesh.rotation.y = FACE_HALL;
+      const padShape = this.shape('pad', 'pad_0', col.purple);
+      if (padShape) { this.padMesh.geometry.dispose(); this.padMesh.geometry = padShape; this.padMesh.rotation.y = 0; this.padLevel = 0; } // made in Blender: already faces the hall
+      this.addOccluder(this.padMesh);
       this.tentacles = [];
       for (let i = 0; i < 5; i++) {
         const a = i / 5 * Math.PI * 2, base = new THREE.Group();
@@ -417,9 +420,12 @@
 
     // the space-diner tables made in Blender (js/models/tables.js): one shape per seat count and level, the
     // magenta corners painted in the wing's colour. Shapes are decoded once and shared.
-    tableShape(s, level, accent) {
-      const T = TBS.Models && TBS.Models.tables, key = s + '_' + Math.min(level, 4) + '_' + accent;
-      const d = T && T[s + '_' + Math.min(level, 4)];
+    tableShape(s, level, accent) { return this.shape('tables', s + '_' + Math.min(level, 4), accent); }
+
+    // a shape from a js/models file made in Blender (tools/blender), decoded once and shared; null if the file is missing
+    shape(model, part, accent) {
+      const T = TBS.Models && TBS.Models[model], key = model + ':' + part + ':' + accent;
+      const d = T && T[part];
       if (!d) return null;
       this.tableShapes = this.tableShapes || {};
       if (this.tableShapes[key]) return this.tableShapes[key];
@@ -664,6 +670,10 @@
           lk.counterLevel = ct.level;
           this.setCounterLook(lk, ct.level);
         }
+      }
+      if (this.padLevel !== undefined) { // pad level -> its Blender shape
+        const l = g.levelOf('pad'), lv = l ? Math.min(l.lv, 4) - 1 : 0;
+        if (lv !== this.padLevel) { const sh = this.shape('pad', 'pad_' + lv, C().purple); if (sh) { this.padMesh.geometry = sh; this.padLevel = lv; } }
       }
       if (this.padModel) { // pad level -> its model
         const l = g.levelOf('pad');
