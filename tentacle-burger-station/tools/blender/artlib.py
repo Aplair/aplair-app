@@ -80,3 +80,23 @@ def export():
         ev.to_mesh_clear()
     return {'pos': [round(x, 4) for x in pos], 'nrm': [round(x, 3) for x in nrm], 'col': [round(x, 3) for x in col], 'idx': idx}
 
+
+def tube(pts, radii, col=None, sides=6):
+    """A bent tube through points (game axes) with a radius per point, closed at both ends (tentacles, pipes)."""
+    from mathutils import Vector
+    col = col or (1.0, 0.0, 1.0)
+    P = [Vector(B(*p)) for p in pts]
+    bm = bmesh.new(); rings = []
+    for i, p in enumerate(P):
+        d = (P[min(i + 1, len(P) - 1)] - P[max(i - 1, 0)]).normalized()
+        a = Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))
+        u = d.cross(a).normalized(); v = d.cross(u).normalized()
+        rings.append([bm.verts.new(p + (u * math.cos(k / sides * 2 * math.pi) + v * math.sin(k / sides * 2 * math.pi)) * radii[i]) for k in range(sides)])
+    for i in range(len(rings) - 1):
+        for k in range(sides):
+            j = (k + 1) % sides
+            bm.faces.new((rings[i][k], rings[i][j], rings[i + 1][j], rings[i + 1][k]))
+    bm.faces.new(list(reversed(rings[0]))); bm.faces.new(rings[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new('tube'); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new('tube', me); bpy.context.collection.objects.link(o); parts.append((o, col)); return o
